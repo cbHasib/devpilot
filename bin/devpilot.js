@@ -691,25 +691,18 @@ async function startDevelopment(context) {
 }
 
 function openMacTabs(context, services) {
-  services.forEach((service, index) => {
+  services.forEach((service) => {
     const command = `cd ${shellQuote(servicePath(context, service))}; ${service.dev}`;
-    const script = index === 0
-      ? [
-        'tell application "Terminal"',
-        'activate',
-        `do script ${appleQuote(command)} in front window`,
-        'end tell'
-      ].join('\n')
-      : [
-        'tell application "Terminal"',
-        'activate',
-        'tell application "System Events"',
-        'keystroke "t" using command down',
-        'end tell',
-        'delay 0.3',
-        `do script ${appleQuote(command)} in selected tab of front window`,
-        'end tell'
-      ].join('\n');
+    const script = [
+      'tell application "Terminal"',
+      'activate',
+      'tell application "System Events"',
+      'keystroke "t" using command down',
+      'end tell',
+      'delay 0.3',
+      `do script ${appleQuote(command)} in selected tab of front window`,
+      'end tell'
+    ].join('\n');
 
     spawnSync('osascript', ['-e', script], { stdio: 'ignore' });
   });
