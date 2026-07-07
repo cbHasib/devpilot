@@ -35,13 +35,13 @@ function printUpdateNotice(latest) {
   const installCommand = `npm install -g ${pkg.name}@latest`;
 
   line();
-  line(rule('╭', '╮'));
+  line(rule('┏', '┓'));
   line(bannerRow(
     `${style('▲', 'yellow')} ${style('Update available', 'yellow', 'bold')}`,
     `${paint(`v${pkg.version}`, 'dim')} ${paint('→', 'gray')} ${style(`v${latest}`, 'green', 'bold')}`
   ));
   line(bannerRow(`${paint('Run', 'dim')} ${style(installCommand, 'cyan', 'bold')} ${paint('to update', 'dim')}`));
-  line(rule('╰', '╯'));
+  line(rule('┗', '┛'));
   line();
 }
 

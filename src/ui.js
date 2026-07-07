@@ -61,34 +61,43 @@ function line(value = '') {
 }
 
 function rule(left, right) {
-  return paint(`${left}${'─'.repeat(BANNER_WIDTH)}${right}`, 'accent');
+  return style(`${left}${'━'.repeat(BANNER_WIDTH)}${right}`, 'accent', 'bold');
 }
 
 function bannerRow(left, right = '') {
   const gap = BANNER_WIDTH - 2 - visibleLength(left) - visibleLength(right);
   const spacer = gap > 0 ? ' '.repeat(gap) : ' ';
-  return `${paint('│', 'accent')} ${left}${spacer}${right} ${paint('│', 'accent')}`;
+  const edge = style('┃', 'accent', 'bold');
+  return `${edge} ${left}${spacer}${right} ${edge}`;
 }
 
 function header(config) {
   line();
-  line(rule('╭', '╮'));
-  line(bannerRow(`${style('✻', 'accent')} ${style('DevPilot', 'white', 'bold')} ${paint(`v${pkg.version}`, 'dim')}`));
-  line(bannerRow(paint('  Project management for multi-service workspaces', 'gray')));
+  line(rule('┏', '┓'));
+  line(bannerRow(''));
+  line(bannerRow(`  ${style('✻', 'accent')} ${style('DevPilot', 'white', 'bold')} ${paint(`v${pkg.version}`, 'dim')}`));
+  line(bannerRow(`    ${paint('Project management for multi-service workspaces', 'gray')}`));
+  line(bannerRow(''));
 
   if (config) {
     const count = config.services ? config.services.length : 0;
-    const meta = [
-      `${paint('alias', 'gray')} ${paint(config.alias, 'dim')}`,
-      paint(countLabel(count), 'dim'),
-      config.packageManager ? paint(config.packageManager, 'dim') : null
-    ].filter(Boolean).join(` ${paint('·', 'gray')} `);
+    const services = config.packageManager
+      ? `${paint(String(count), 'white')} ${paint('·', 'gray')} ${paint(config.packageManager, 'white')}`
+      : paint(String(count), 'white');
 
+    line(bannerRow(paint(`  ${'─'.repeat(BANNER_WIDTH - 6)}`, 'gray')));
     line(bannerRow(''));
-    line(bannerRow(`  ${style('◆', 'accent')} ${style(config.projectName, 'white', 'bold')}   ${meta}`));
+    headerRow('project', style(config.projectName, 'white', 'bold'));
+    headerRow('services', services);
+    headerRow('alias', paint(config.alias, 'white'));
+    line(bannerRow(''));
   }
 
-  line(rule('╰', '╯'));
+  line(rule('┗', '┛'));
+}
+
+function headerRow(label, value) {
+  line(bannerRow(`  ${paint(padVisible(label, 11), 'gray')}${value}`));
 }
 
 function section(title) {
