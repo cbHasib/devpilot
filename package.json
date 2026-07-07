@@ -1,0 +1,32 @@
+{
+  "name": "@cbhasib/devpilot",
+  "version": "0.1.0",
+  "description": "Reusable project management CLI for multi-service development workspaces.",
+  "author": "Hasibul Hasan <cbHasib>",
+  "license": "MIT",
+  "bin": {
+    "devpilot": "./bin/devpilot.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "check": "node --check bin/devpilot.js",
+    "start": "node bin/devpilot.js",
+    "pack:dry": "npm pack --dry-run"
+  },
+  "keywords": [
+    "cli",
+    "developer-tools",
+    "workspace",
+    "monorepo",
+    "services"
+  ]
+}
