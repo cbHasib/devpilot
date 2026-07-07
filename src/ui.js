@@ -75,7 +75,7 @@ function header(config) {
   line();
   line(rule('┏', '┓'));
   line(bannerRow(''));
-  line(bannerRow(`  ${style('✻', 'accent')} ${style('DevPilot', 'white', 'bold')} ${paint(`v${pkg.version}`, 'dim')}`));
+  line(bannerRow(`  ${style('✻', 'accent')} ${style('DevPilot', 'white', 'bold')} ${paint(`v${pkg.version} by Hasibul Hasan`, 'dim')}`));
   line(bannerRow(`    ${paint('Project management for multi-service workspaces', 'gray')}`));
   line(bannerRow(''));
 
