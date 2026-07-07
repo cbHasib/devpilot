@@ -34,6 +34,7 @@ Instead of remembering every folder and command, DevPilot stores the project set
 - Opens services in terminal tabs on supported systems
 - Falls back to running services in the current terminal
 - Keeps machine-specific project config out of git by default
+- Checks for new versions in the background and shows an update notice
 
 ## Author
 
@@ -236,6 +237,19 @@ Shows DevPilot package information.
 ```bash
 my-services about
 ```
+
+## Update Notifications
+
+Every DevPilot command (including project aliases) checks for a newer published version at most once per day. The check runs in a detached background process, so it never slows commands down, and the result is cached in `~/.devpilot/update-check.json`. When a newer version exists, a notice with the install command is shown at the end of the run:
+
+```text
+╭────────────────────────────────────────────────────────────╮
+│ ▲ Update available                         v0.1.3 → v0.2.0 │
+│ Run npm install -g @cbhasib/devpilot@latest to update      │
+╰────────────────────────────────────────────────────────────╯
+```
+
+To disable the check, set `DEVPILOT_NO_UPDATE_CHECK=1`. It is also skipped automatically in CI and non-interactive shells.
 
 ## Example Config
 

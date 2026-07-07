@@ -17,16 +17,17 @@
   },
   "files": [
     "bin",
+    "src",
     "README.md"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20.12.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "check": "node --check bin/devpilot.js",
+    "check": "node --check bin/devpilot.js && node -e \"require('./src/cli')\"",
     "start": "node bin/devpilot.js",
     "pack:dry": "npm pack --dry-run"
   },
@@ -36,5 +37,8 @@
     "workspace",
     "monorepo",
     "services"
-  ]
+  ],
+  "dependencies": {
+    "@clack/prompts": "^1.7.0"
+  }
 }
