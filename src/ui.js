@@ -15,6 +15,7 @@ const colors = {
   reverse: '\x1b[7m',
   accent: '\x1b[38;5;173m',
   accentSoft: '\x1b[38;5;216m',
+  badge: '\x1b[48;5;173m\x1b[38;5;235m\x1b[1m',
   cyan: '\x1b[38;5;80m',
   green: '\x1b[38;5;114m',
   yellow: '\x1b[38;5;179m',
@@ -69,19 +70,21 @@ function bannerRow(left, right = '') {
 }
 
 function header(config) {
-  line(rule('╭', '╮'));
-  line(bannerRow(
-    `${style('◆', 'accent')} ${style('DevPilot', 'accent', 'bold')}  ${paint('Project Management CLI', 'dim')}`,
-    paint(`v${pkg.version}`, 'dim')
-  ));
+  line();
+  line(`  ${style(' DevPilot ', 'badge')} ${paint(`v${pkg.version}`, 'dim')}  ${paint('Project Management CLI', 'gray')}`);
 
   if (config) {
     const count = config.services ? config.services.length : 0;
-    const meta = `${paint('alias', 'dim')} ${config.alias}  ${paint('·', 'gray')}  ${count} ${count === 1 ? 'service' : 'services'}`;
-    line(bannerRow(style(config.projectName, 'white', 'bold'), meta));
+    const meta = [
+      `${paint('alias', 'gray')} ${paint(config.alias, 'dim')}`,
+      paint(countLabel(count), 'dim'),
+      config.packageManager ? paint(config.packageManager, 'dim') : null
+    ].filter(Boolean).join(`  ${paint('·', 'gray')}  `);
+
+    line(`  ${style('◆', 'accent')} ${style(config.projectName, 'white', 'bold')}   ${meta}`);
   }
 
-  line(rule('╰', '╯'));
+  line(`  ${paint('─'.repeat(BANNER_WIDTH), 'gray')}`);
 }
 
 function section(title) {
