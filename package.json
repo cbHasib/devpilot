@@ -1,11 +1,19 @@
 {
   "name": "@cbhasib/devpilot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reusable project management CLI for multi-service development workspaces.",
   "author": "Hasibul Hasan <cbHasib>",
   "license": "MIT",
+  "homepage": "https://github.com/cbHasib/devpilot#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cbHasib/devpilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cbHasib/devpilot/issues"
+  },
   "bin": {
-    "devpilot": "./bin/devpilot.js"
+    "devpilot": "bin/devpilot.js"
   },
   "files": [
     "bin",
