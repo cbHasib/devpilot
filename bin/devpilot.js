@@ -19,15 +19,42 @@ const colors = {
   reset: '\x1b[0m',
   bold: '\x1b[1m',
   dim: '\x1b[2m',
-  cyan: '\x1b[36m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  red: '\x1b[31m',
-  reverse: '\x1b[7m'
+  italic: '\x1b[3m',
+  underline: '\x1b[4m',
+  reverse: '\x1b[7m',
+  accent: '\x1b[38;5;173m',
+  accentSoft: '\x1b[38;5;216m',
+  cyan: '\x1b[38;5;80m',
+  green: '\x1b[38;5;114m',
+  yellow: '\x1b[38;5;179m',
+  red: '\x1b[38;5;203m',
+  gray: '\x1b[38;5;245m',
+  white: '\x1b[38;5;253m'
 };
 
+const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
+const BANNER_WIDTH = 60;
+
 function paint(value, color) {
-  return colorEnabled ? `${colors[color]}${value}${colors.reset}` : value;
+  return colorEnabled && colors[color] ? `${colors[color]}${value}${colors.reset}` : value;
+}
+
+function style(value, ...names) {
+  if (!colorEnabled) {
+    return value;
+  }
+
+  const prefix = names.map((name) => colors[name] || '').join('');
+  return `${prefix}${value}${colors.reset}`;
+}
+
+function visibleLength(value) {
+  return String(value).replace(ANSI_PATTERN, '').length;
+}
+
+function padVisible(value, width) {
+  const padding = width - visibleLength(value);
+  return padding > 0 ? `${value}${' '.repeat(padding)}` : value;
 }
 
 function clearScreen() {
@@ -40,31 +67,51 @@ function line(value = '') {
   console.log(value);
 }
 
+function rule(left, right) {
+  return paint(`${left}${'─'.repeat(BANNER_WIDTH)}${right}`, 'accent');
+}
+
+function bannerRow(left, right = '') {
+  const gap = BANNER_WIDTH - 2 - visibleLength(left) - visibleLength(right);
+  const spacer = gap > 0 ? ' '.repeat(gap) : ' ';
+  return `${paint('│', 'accent')} ${left}${spacer}${right} ${paint('│', 'accent')}`;
+}
+
 function header(config) {
-  line(paint('============================================================', 'cyan'));
-  line(`${paint('Project Management CLI', 'bold')}  ${paint('DevPilot', 'cyan')} ${paint(`v${pkg.version}`, 'dim')}`);
+  line(rule('╭', '╮'));
+  line(bannerRow(
+    `${style('◆', 'accent')} ${style('DevPilot', 'accent', 'bold')}  ${paint('Project Management CLI', 'dim')}`,
+    paint(`v${pkg.version}`, 'dim')
+  ));
+
   if (config) {
-    line(`${paint('Project:', 'dim')} ${config.projectName}  ${paint('Alias:', 'dim')} ${config.alias}`);
+    const count = config.services ? config.services.length : 0;
+    const meta = `${paint('alias', 'dim')} ${config.alias}  ${paint('·', 'gray')}  ${count} ${count === 1 ? 'service' : 'services'}`;
+    line(bannerRow(style(config.projectName, 'white', 'bold'), meta));
   }
-  line(paint('============================================================', 'cyan'));
-  line();
+
+  line(rule('╰', '╯'));
 }
 
 function section(title) {
   line();
-  line(paint(`==== ${title} ====`, 'bold'));
+  line(`  ${paint('▸', 'accent')} ${style(title, 'white', 'bold')}`);
 }
 
 function success(message) {
-  line(`${paint('OK', 'green')} ${message}`);
+  line(`  ${paint('✓', 'green')} ${message}`);
 }
 
 function warning(message) {
-  line(`${paint('WARN', 'yellow')} ${message}`);
+  line(`  ${paint('▲', 'yellow')} ${message}`);
 }
 
 function fail(message) {
-  line(`${paint('ERR', 'red')} ${message}`);
+  line(`  ${paint('✗', 'red')} ${message}`);
+}
+
+function info(message) {
+  line(`  ${paint('›', 'accent')} ${message}`);
 }
 
 function parseArgs(argv) {
@@ -120,19 +167,27 @@ async function main() {
 
 function showHelp() {
   header();
-  line(`${paint('Usage:', 'bold')} devpilot <command>`);
+  line(`  ${paint('Usage', 'dim')}  ${style('devpilot', 'accent', 'bold')} ${paint('<command>', 'dim')}`);
   line();
-  line(`${paint('Commands:', 'bold')}`);
-  line('  setup      Configure the current project');
-  line('  dev        Start all configured services');
-  line('  install    Install dependencies for all services');
-  line('  build      Build all services');
-  line('  lint       Lint all services');
-  line('  clean      Remove generated folders');
-  line('  doctor     Check local tooling');
-  line('  update     Pull latest changes and install dependencies');
-  line('  about      Show CLI information');
-  line('  help       Show this help');
+  line(`  ${style('Commands', 'white', 'bold')}`);
+
+  const commands = [
+    ['setup', 'Configure the current project'],
+    ['dev', 'Start all configured services'],
+    ['install', 'Install dependencies for all services'],
+    ['build', 'Build all services'],
+    ['lint', 'Lint all services'],
+    ['clean', 'Remove generated folders'],
+    ['doctor', 'Check local tooling'],
+    ['update', 'Pull latest changes and install dependencies'],
+    ['about', 'Show CLI information'],
+    ['help', 'Show this help']
+  ];
+
+  commands.forEach(([name, description]) => {
+    line(`    ${style(padVisible(name, 9), 'accent')} ${paint(description, 'dim')}`);
+  });
+
   line();
 }
 
@@ -181,15 +236,15 @@ async function showMenu(context) {
   }
 
   const items = [
-    { label: 'Start Development', command: 'dev' },
-    { label: 'Install Dependencies', command: 'install' },
-    { label: 'Build All Services', command: 'build' },
-    { label: 'Lint All Services', command: 'lint' },
-    { label: 'Clean Project', command: 'clean' },
-    { label: 'Doctor', command: 'doctor' },
-    { label: 'Update Project', command: 'update' },
-    { label: 'About', command: 'about' },
-    { label: 'Exit', command: 'exit' }
+    { label: 'Start Development', command: 'dev', hint: 'Launch every service in its own tab' },
+    { label: 'Install Dependencies', command: 'install', hint: 'Install packages for all services' },
+    { label: 'Build All Services', command: 'build', hint: 'Run each service build script' },
+    { label: 'Lint All Services', command: 'lint', hint: 'Run each service lint script' },
+    { label: 'Clean Project', command: 'clean', hint: 'Remove node_modules, dist, and caches' },
+    { label: 'Doctor', command: 'doctor', hint: 'Check local tooling and configuration' },
+    { label: 'Update Project', command: 'update', hint: 'Pull latest changes and reinstall' },
+    { label: 'About', command: 'about', hint: 'Version and project links' },
+    { label: 'Exit', command: 'exit', hint: 'Leave DevPilot' }
   ];
 
   let selected = 0;
@@ -197,19 +252,22 @@ async function showMenu(context) {
   while (true) {
     clearScreen();
     header(context.config);
-    line(paint('Use arrow keys to navigate, Enter to select, q to quit', 'yellow'));
+    line(`  ${style('What would you like to do?', 'white', 'bold')}`);
     line();
-    line(paint('------------------------------------------------------------', 'dim'));
 
     items.forEach((item, index) => {
-      if (index === selected) {
-        line(paint(` > ${item.label} `, 'reverse'));
+      const active = index === selected;
+
+      if (active) {
+        const label = padVisible(style(item.label, 'accent', 'bold'), 24);
+        line(`  ${style('❯', 'accent')} ${label}${paint(item.hint, 'dim')}`);
       } else {
-        line(`   ${item.label}`);
+        line(`    ${padVisible(paint(item.label, 'gray'), 24)}`);
       }
     });
 
-    line(paint('------------------------------------------------------------', 'dim'));
+    line();
+    line(`  ${paint('↑ ↓', 'accent')} ${paint('navigate', 'dim')}    ${paint('enter', 'accent')} ${paint('select', 'dim')}    ${paint('q', 'accent')} ${paint('quit', 'dim')}`);
 
     const key = await readKey();
 
@@ -224,30 +282,42 @@ async function showMenu(context) {
     }
 
     if (key === 'quit') {
-      clearScreen();
-      line(paint('Goodbye.', 'dim'));
+      farewell();
       return;
     }
 
     if (key === 'enter') {
       const item = items[selected];
-      clearScreen();
 
       if (item.command === 'exit') {
-        line(paint('Goodbye.', 'dim'));
+        farewell();
         return;
       }
 
-      if (item.command === 'about') {
-        showAbout(context.config);
-        await waitForEnter('Press Enter to return...');
-        continue;
+      clearScreen();
+
+      try {
+        await runCommand(item.command, context);
+      } catch (error) {
+        line();
+        fail(error.message);
       }
 
-      await runCommand(item.command, context);
-      return;
+      if (item.command === 'dev') {
+        return;
+      }
+
+      line();
+      await waitForEnter(`  ${paint('Press Enter to return to the menu…', 'dim')}`);
     }
   }
+}
+
+function farewell() {
+  clearScreen();
+  line();
+  line(`  ${style('◆', 'accent')} ${paint('See you next time.', 'dim')}`);
+  line();
 }
 
 function readKey() {
@@ -677,17 +747,45 @@ async function startDevelopment(context) {
     return;
   }
 
-  if (config.launchMode !== 'current' && process.platform === 'darwin' && commandExists('osascript')) {
+  section('Start Development');
+
+  const useMacTabs = config.launchMode !== 'current'
+    && process.platform === 'darwin'
+    && commandExists('osascript');
+  const useGnomeTabs = config.launchMode !== 'current'
+    && process.platform === 'linux'
+    && !isWsl()
+    && commandExists('gnome-terminal');
+
+  if (!useMacTabs && !useGnomeTabs) {
+    await runDevHere(context, services);
+    return;
+  }
+
+  line();
+
+  if (useMacTabs) {
     openMacTabs(context, services);
-    return;
-  }
-
-  if (config.launchMode !== 'current' && process.platform === 'linux' && !isWsl() && commandExists('gnome-terminal')) {
+  } else {
     openGnomeTabs(context, services);
-    return;
   }
 
-  await runDevHere(context, services);
+  services.forEach((service) => {
+    success(`${style(service.name, 'white', 'bold')}  ${paint('→', 'gray')}  ${paint(service.dev, 'dim')}`);
+  });
+
+  devRunningBanner(services.length);
+}
+
+function devRunningBanner(count) {
+  const label = count === 1 ? 'service is' : 'services are';
+  const message = `All ${count} ${label} now running`;
+
+  line();
+  line(rule('╭', '╮'));
+  line(bannerRow(`${style('✓', 'green')} ${style(message, 'green', 'bold')}`, paint('in separate tabs', 'dim')));
+  line(rule('╰', '╯'));
+  line();
 }
 
 function openMacTabs(context, services) {
@@ -706,8 +804,6 @@ function openMacTabs(context, services) {
 
     spawnSync('osascript', ['-e', script], { stdio: 'ignore' });
   });
-
-  success('Opened services in Terminal tabs.');
 }
 
 function openGnomeTabs(context, services) {
@@ -725,8 +821,6 @@ function openGnomeTabs(context, services) {
       stdio: 'ignore'
     }).unref();
   });
-
-  success('Opened services in terminal tabs.');
 }
 
 async function runDevHere(context, services) {
@@ -777,9 +871,21 @@ async function runDevHere(context, services) {
 }
 
 async function installAll(context) {
-  const command = installCommand(context.config.packageManager);
   header(context.config);
-  await runSequential(context, context.config.services, command, 'Install Dependencies');
+  await installServices(context);
+}
+
+async function installServices(context) {
+  const services = context.config.services;
+
+  if (services.length === 0) {
+    warning('No services are configured.');
+    return;
+  }
+
+  const command = installCommand(context.config.packageManager);
+  await runSequential(context, services, command, 'Install Dependencies');
+  completionBanner(`Dependencies installed for ${countLabel(services.length)}`);
 }
 
 async function runForServices(context, field, title) {
@@ -794,6 +900,8 @@ async function runForServices(context, field, title) {
   for (const service of services) {
     await runOne(context, service, service[field], title);
   }
+
+  completionBanner(`${title} finished for ${countLabel(services.length)}`);
 }
 
 async function runSequential(context, services, command, title) {
@@ -804,9 +912,19 @@ async function runSequential(context, services, command, title) {
 
 async function runOne(context, service, command, title) {
   section(`${title}: ${service.name}`);
-  line(`${paint('Folder:', 'dim')} ${service.dir}`);
-  line(`${paint('Command:', 'dim')} ${command}`);
+  line(`    ${paint('folder', 'dim')}   ${service.dir}`);
+  line(`    ${paint('command', 'dim')}  ${paint(command, 'cyan')}`);
+  line();
   await runShell(command, servicePath(context, service));
+}
+
+function countLabel(count) {
+  return `${count} ${count === 1 ? 'service' : 'services'}`;
+}
+
+function completionBanner(message) {
+  line();
+  line(`  ${paint('✓', 'green')} ${style(message, 'green', 'bold')}`);
 }
 
 function cleanProject(context) {
@@ -816,6 +934,7 @@ function cleanProject(context) {
   context.config.services.forEach((service) => {
     section(`Clean: ${service.name}`);
     const root = servicePath(context, service);
+    let removed = 0;
 
     targets.forEach((target) => {
       const fullPath = path.join(root, target);
@@ -823,11 +942,16 @@ function cleanProject(context) {
       if (fs.existsSync(fullPath)) {
         fs.rmSync(fullPath, { recursive: true, force: true });
         success(`Removed ${service.dir}/${target}`);
+        removed += 1;
       }
     });
+
+    if (removed === 0) {
+      info('Nothing to remove.');
+    }
   });
 
-  success('Clean complete.');
+  completionBanner('Clean complete');
 }
 
 function doctor(context) {
@@ -838,9 +962,9 @@ function doctor(context) {
   printVersion('Git', 'git', ['--version']);
 
   section('Project');
-  line(`${paint('Root:', 'dim')} ${context.root}`);
-  line(`${paint('Services:', 'dim')} ${context.config.services.length}`);
-  line(`${paint('Launch mode:', 'dim')} ${context.config.launchMode}`);
+  line(`    ${paint('root', 'dim')}         ${context.root}`);
+  line(`    ${paint('services', 'dim')}     ${context.config.services.length}`);
+  line(`    ${paint('launch mode', 'dim')}  ${context.config.launchMode}`);
 
   section('Terminal');
 
@@ -857,23 +981,26 @@ async function updateProject(context) {
   header(context.config);
 
   if (isGitRepo(context.root)) {
-    section('Git Pull');
+    section('Update Project');
+    line();
     await runShell('git pull', context.root);
   } else {
     warning('Project root is not inside a git repository. Skipping git pull.');
   }
 
-  await installAll(context);
+  await installServices(context);
+  completionBanner('Project is up to date');
 }
 
 function showAbout(config) {
   header(config);
-  line(`${paint('DevPilot', 'bold')} - Project Management CLI`);
+  section('About');
+  line(`    ${style('DevPilot', 'accent', 'bold')} ${paint('· Project Management CLI', 'dim')}`);
   line();
-  line(`${paint('Version', 'dim')}  ${pkg.version}`);
-  line(`${paint('Package', 'dim')}  ${pkg.name}`);
-  line(`${paint('Author', 'dim')}   Hasibul Hasan`);
-  line(`${paint('GitHub', 'dim')}   https://github.com/cbHasib`);
+  line(`    ${paint('version', 'dim')}  ${pkg.version}`);
+  line(`    ${paint('package', 'dim')}  ${pkg.name}`);
+  line(`    ${paint('author', 'dim')}   Hasibul Hasan`);
+  line(`    ${paint('github', 'dim')}   ${paint('https://github.com/cbHasib', 'cyan')}`);
   line();
 }
 
