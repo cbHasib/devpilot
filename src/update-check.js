@@ -9,8 +9,8 @@ const pkg = require('../package.json');
 const { line, rule, bannerRow, paint, style } = require('./ui');
 
 const CACHE_FILE = path.join(os.homedir(), '.devpilot', 'update-check.json');
-const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 5000;
+const CHECK_INTERVAL_MS = 0.5 * 60 * 60 * 1000; // 30 minutes
+const FETCH_TIMEOUT_MS = 5000; // 5 seconds
 
 function scheduleUpdateCheck() {
   if (!process.stdout.isTTY || process.env.CI || process.env.DEVPILOT_NO_UPDATE_CHECK) {

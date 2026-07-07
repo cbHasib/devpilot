@@ -14,6 +14,12 @@ function showAbout(config) {
   line(`    ${style('DevPilot', 'accent', 'bold')} ${paint(`v${pkg.version}`, 'dim')} ${paint('·', 'gray')} ${paint(`${pkg.license} license`, 'dim')}`);
   line(`    ${paint(pkg.description, 'gray')}`);
 
+  section('Philosophy');
+  principle('Configure once', 'one .devpilot.json describes the whole workspace.');
+  principle('Zero lock-in', 'a thin layer over the scripts your services already have.');
+  principle('One entry point', 'dev, install, build, lint, clean, and doctor for every service.');
+  principle('Stay out of the way', 'no daemons, no state beyond a small config file.');
+
   section('Author');
   line(`    ${style('Hasibul Hasan', 'white', 'bold')}`);
   row('github', link('https://github.com/cbHasib'));
@@ -33,6 +39,11 @@ function showAbout(config) {
 
 function row(label, value) {
   line(`    ${paint(padVisible(label, 12), 'gray')}${value}`);
+}
+
+function principle(title, text) {
+  line(`    ${paint('·', 'accent')} ${style(title, 'white', 'bold')}`);
+  line(`      ${paint(text, 'gray')}`);
 }
 
 function link(url) {

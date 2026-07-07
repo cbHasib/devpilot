@@ -51,7 +51,8 @@ function padVisible(value, width) {
 
 function clearScreen() {
   if (process.stdout.isTTY) {
-    process.stdout.write('\x1b[2J\x1b[H');
+    // 2J clears the visible screen, 3J wipes scrollback so nothing lingers.
+    process.stdout.write('\x1b[H\x1b[2J\x1b[3J');
   }
 }
 
@@ -71,7 +72,9 @@ function bannerRow(left, right = '') {
 
 function header(config) {
   line();
-  line(`  ${style(' DevPilot ', 'badge')} ${paint(`v${pkg.version}`, 'dim')}  ${paint('Project Management CLI', 'gray')}`);
+  line(rule('╭', '╮'));
+  line(bannerRow(`${style('✻', 'accent')} ${style('DevPilot', 'white', 'bold')} ${paint(`v${pkg.version}`, 'dim')}`));
+  line(bannerRow(paint('  Project management for multi-service workspaces', 'gray')));
 
   if (config) {
     const count = config.services ? config.services.length : 0;
@@ -79,12 +82,13 @@ function header(config) {
       `${paint('alias', 'gray')} ${paint(config.alias, 'dim')}`,
       paint(countLabel(count), 'dim'),
       config.packageManager ? paint(config.packageManager, 'dim') : null
-    ].filter(Boolean).join(`  ${paint('·', 'gray')}  `);
+    ].filter(Boolean).join(` ${paint('·', 'gray')} `);
 
-    line(`  ${style('◆', 'accent')} ${style(config.projectName, 'white', 'bold')}   ${meta}`);
+    line(bannerRow(''));
+    line(bannerRow(`  ${style('◆', 'accent')} ${style(config.projectName, 'white', 'bold')}   ${meta}`));
   }
 
-  line(`  ${paint('─'.repeat(BANNER_WIDTH), 'gray')}`);
+  line(rule('╰', '╯'));
 }
 
 function section(title) {
