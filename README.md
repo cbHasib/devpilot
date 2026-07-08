@@ -1,8 +1,10 @@
-# DevPilot
+# 🚀 DevPilot
 
-DevPilot is a reusable project management CLI for multi-service development workspaces.
+> **One command. Every service. Any project.**
 
-Install it once, configure it per project, and then run one memorable project command from anywhere on your machine.
+DevPilot is a **developer workspace manager** for multi-service projects.
+
+Configure your project once, then launch, build, maintain, and manage your entire development workspace using a single memorable command—from anywhere on your machine.
 
 ```bash
 my-services
@@ -11,127 +13,185 @@ my-services build
 my-services doctor
 ```
 
-DevPilot is useful when a project has multiple apps or services, for example:
+Whether your project has 2 services or 20, DevPilot gives every developer the same clean workflow.
+
+---
+
+# Why DevPilot?
+
+Modern applications rarely consist of a single project.
 
 ```text
 my-project/
-  backend/
-  frontend/
-  storefront/
-  landing/
+├── backend/
+├── frontend/
+├── admin/
+├── landing/
+├── docs/
+└── worker/
 ```
 
-Instead of remembering every folder and command, DevPilot stores the project setup once and gives you a clean terminal menu plus direct commands.
+Without DevPilot, developers often need to:
 
-## Features
+* Open multiple terminal windows
+* Navigate between directories repeatedly
+* Remember different commands for every service
+* Create custom shell scripts
+* Spend extra time onboarding new team members
 
-- Global CLI command: `devpilot`
-- Per-project custom aliases, for example `my-services`
-- Works from any terminal path after setup
-- Auto-detects service folders with `package.json`
-- Supports `npm`, `yarn`, `pnpm`, and `bun`
-- Runs `dev`, `install`, `build`, `lint`, `clean`, `doctor`, and `update`
-- Opens services in terminal tabs on supported systems
-- Falls back to running services in the current terminal
-- Keeps machine-specific project config out of git by default
-- Checks for new versions in the background and shows an update notice
+DevPilot removes that friction by configuring your workspace once and exposing a single project command.
 
-## Author
+```bash
+my-services
+```
 
-Created and maintained by **Hasibul Hasan**.
+No more remembering where everything lives.
 
-- GitHub: [cbHasib](https://github.com/cbHasib)
-- npm: [cbHasib](https://www.npmjs.com/~cbhasib)
-- Website: [hasib.me](https://hasib.me)
+---
 
-## Installation
+# Why not just use Turborepo, Nx or Docker Compose?
 
-Install DevPilot globally:
+Because they solve different problems.
+
+| Tool                      | Primary Purpose                                |
+| ------------------------- | ---------------------------------------------- |
+| **Turborepo**             | Task pipelines, caching and incremental builds |
+| **Nx**                    | Monorepo architecture and task execution       |
+| **Docker Compose**        | Container orchestration                        |
+| **npm / pnpm Workspaces** | Package management                             |
+| **DevPilot**              | Local developer workspace management           |
+
+DevPilot **does not replace** these tools.
+
+Instead, it works alongside them.
+
+For example, your project may already use Turborepo for builds and Docker Compose for containers. DevPilot simply becomes the single entry point that developers use every day.
+
+```bash
+my-services
+```
+
+From there they can:
+
+* Start development servers
+* Install dependencies
+* Build services
+* Run lint checks
+* Clean generated files
+* Verify project health
+* Update repositories
+
+One command.
+
+One workflow.
+
+---
+
+# Features
+
+* 🚀 One memorable command per project
+* ⚡ Interactive terminal interface
+* 📦 Supports npm, Yarn, pnpm and Bun
+* 🔍 Automatically detects service folders
+* 🛠 Guided project setup
+* 🖥 Launch services in terminal tabs (where supported)
+* 📂 Works from anywhere after setup
+* 🧹 Built-in install, build, lint, clean, doctor and update commands
+* 🔄 Automatic background update notifications
+* 🔒 Keeps machine-specific configuration out of Git by default
+* 🌎 Cross-platform
+
+---
+
+# Installation
+
+Install globally.
 
 ```bash
 npm install -g @cbhasib/devpilot
 ```
 
-Check that it is available:
+Or use your preferred package manager.
+
+```bash
+yarn global add @cbhasib/devpilot
+```
+
+```bash
+pnpm add -g @cbhasib/devpilot
+```
+
+```bash
+bun add -g @cbhasib/devpilot
+```
+
+Verify the installation.
 
 ```bash
 devpilot --version
 devpilot help
 ```
 
-## Project Setup
+---
 
-Open the root folder of the project you want to manage:
+# Getting Started
+
+Navigate to your project root.
 
 ```bash
 cd /path/to/my-project
 ```
 
-Run setup:
+Run the setup wizard.
 
 ```bash
 devpilot setup
 ```
 
-DevPilot will ask for:
+DevPilot will guide you through:
 
-- project display name
-- command alias, for example `my-services`
-- package manager
-- development launch mode
-- service folders
-- dev, build, and lint commands for each service
+* Project name
+* Global command alias
+* Package manager
+* Launch mode
+* Service discovery
+* Development, build and lint commands
 
-Example answers:
+Example:
 
 ```text
-Project display name: My Project
-Command alias: my-services
-Package manager: yarn
-Development launch mode: tabs
+Project Name : My Project
+Alias        : my-services
+Package      : yarn
+Launch Mode  : tabs
 ```
 
-After setup, DevPilot writes a local config file:
+After setup, DevPilot generates:
 
 ```text
 .devpilot.json
 ```
 
-It also adds these entries to the project `.gitignore`:
+and automatically adds the following to your project's `.gitignore`:
 
 ```gitignore
 .devpilot.json
 .devpilot/
 ```
 
-These files are ignored because project paths, generated aliases, and local preferences can be different on every developer machine.
+This keeps machine-specific paths and preferences out of version control.
 
-## Global Alias Behavior
+---
 
-When you create the alias `my-services`, DevPilot creates a global command that points back to the project path where setup was run.
+# Running Your Workspace
 
-That means this works from anywhere:
-
-```bash
-cd ~
-my-services
-my-services dev
-my-services build
-```
-
-The alias loads the original project config, changes into the correct project or service folders internally, and runs the configured commands there.
-
-If you move the project folder later, run setup again from the new location and recreate the alias.
-
-## Usage
-
-Open the interactive menu:
+Open the interactive workspace.
 
 ```bash
 my-services
 ```
 
-Run direct commands:
+Or execute commands directly.
 
 ```bash
 my-services dev
@@ -144,7 +204,7 @@ my-services update
 my-services about
 ```
 
-You can also use the generic command from inside the project:
+Inside the project directory you can also use:
 
 ```bash
 devpilot
@@ -152,134 +212,114 @@ devpilot dev
 devpilot doctor
 ```
 
-## Commands
+---
 
-### `dev`
+# Available Commands
 
-Starts all configured services.
+| Command   | Description                                                                  |
+| --------- | ---------------------------------------------------------------------------- |
+| `dev`     | Start all configured services                                                |
+| `install` | Install dependencies                                                         |
+| `build`   | Build every configured service                                               |
+| `lint`    | Run lint commands                                                            |
+| `clean`   | Remove generated folders like `node_modules`, `.next`, `dist` and `coverage` |
+| `doctor`  | Verify local tools and project configuration                                 |
+| `update`  | Pull the latest Git changes and reinstall dependencies                       |
+| `about`   | Display DevPilot information                                                 |
+
+---
+
+# Global Project Aliases
+
+During setup, DevPilot creates a global command that points back to your project.
+
+For example:
 
 ```bash
-my-services dev
+devpilot setup
 ```
 
-On macOS, DevPilot uses Terminal tabs when possible. On Linux, it uses GNOME Terminal tabs when available. Otherwise, it starts services in the current terminal.
-
-### `install`
-
-Installs dependencies in every configured service folder.
-
-```bash
-my-services install
-```
-
-The install command depends on the package manager:
+Alias:
 
 ```text
-npm  -> npm install
-yarn -> yarn install
-pnpm -> pnpm install
-bun  -> bun install
+my-services
 ```
 
-### `build`
-
-Runs each service build command.
+Now you can run your workspace from anywhere.
 
 ```bash
+cd ~
+
+my-services
+my-services dev
 my-services build
 ```
 
-### `lint`
+No need to remember where the project lives.
 
-Runs each service lint command.
+---
 
-```bash
-my-services lint
-```
+# Update Notifications
 
-### `clean`
+DevPilot checks for new versions in the background (at most once per day) without slowing down your commands.
 
-Removes common generated folders from each service:
+When an update is available you'll see:
 
 ```text
-node_modules
-dist
-.next
-coverage
+▲ Update available
+v0.2.0 → v0.2.1
+
+Run:
+
+npm install -g @cbhasib/devpilot@latest
 ```
+
+Disable update checks if needed:
 
 ```bash
-my-services clean
+export DEVPILOT_NO_UPDATE_CHECK=1
 ```
 
-### `doctor`
+Update checks are automatically skipped in CI and non-interactive environments.
 
-Checks local tools and project setup.
+---
 
-```bash
-my-services doctor
-```
-
-It reports Node.js, package manager, Git, project root, service count, and terminal-tab support.
-
-### `update`
-
-Runs `git pull` from the project root and then installs service dependencies.
-
-```bash
-my-services update
-```
-
-### `about`
-
-Shows DevPilot package information.
-
-```bash
-my-services about
-```
-
-## Update Notifications
-
-Every DevPilot command (including project aliases) checks for a newer published version at most once per day. The check runs in a detached background process, so it never slows commands down, and the result is cached in `~/.devpilot/update-check.json`. When a newer version exists, a notice with the install command is shown at the end of the run:
+# Example Project
 
 ```text
-╭────────────────────────────────────────────────────────────╮
-│ ▲ Update available                         v0.1.3 → v0.2.0 │
-│ Run npm install -g @cbhasib/devpilot@latest to update      │
-╰────────────────────────────────────────────────────────────╯
+my-project/
+├── backend/
+├── frontend/
+├── admin/
+└── landing/
 ```
 
-To disable the check, set `DEVPILOT_NO_UPDATE_CHECK=1`. It is also skipped automatically in CI and non-interactive shells.
+Configure once:
 
-## Example Config
-
-A generated `.devpilot.json` can look like this:
-
-```json
-{
-  "schemaVersion": 1,
-  "projectName": "My Project",
-  "alias": "my-services",
-  "packageManager": "yarn",
-  "launchMode": "tabs",
-  "services": [
-    {
-      "dir": "backend",
-      "name": "Backend API",
-      "dev": "yarn start:dev",
-      "build": "yarn build",
-      "lint": "yarn lint"
-    },
-    {
-      "dir": "frontend",
-      "name": "Frontend",
-      "dev": "yarn dev",
-      "build": "yarn build",
-      "lint": "yarn lint"
-    }
-  ],
-  "createdAt": "2026-07-07T00:00:00.000Z"
-}
+```bash
+devpilot setup
 ```
 
-This file is intentionally local by default. If a team wants to share a preset, copy the values into documentation or create a committed template separately.
+Use forever:
+
+```bash
+my-services
+```
+
+---
+
+# Author
+
+**Hasibul Hasan**
+
+GitHub: https://github.com/cbHasib
+
+npm: https://www.npmjs.com/~cbhasib
+
+Website: https://hasib.me
+
+---
+
+# License
+
+MIT
