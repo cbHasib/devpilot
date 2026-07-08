@@ -1,483 +1,360 @@
-# 🚀 DevPilot
+# DevPilot
 
-> **Stop opening five terminals every morning. One command to run your entire development workspace.**
+Run a local multi-service workspace from one command.
 
-DevPilot is a **developer workspace manager** for multi-service projects.
+DevPilot is a small CLI for projects where local development means starting several folders every day: a web app, an API, a worker, docs, admin, or any other service with its own command.
 
-Configure your project once, then launch, build, maintain, and manage your entire development workspace using a single memorable command—from anywhere on your machine.
+It does not replace Docker Compose, Turborepo, Nx, pnpm workspaces, or your package manager. It sits above them as the daily developer entry point.
 
 ```bash
-my-services
-my-services dev
-my-services build
-my-services doctor
+npm install -g @cbhasib/devpilot
+devpilot setup
 ```
 
-Whether your project has 2 services or 20, DevPilot gives every developer the same clean workflow.
+After setup, use your project alias:
 
----
+```bash
+my-app
+my-app dev
+my-app status
+my-app logs api
+```
 
-# Why DevPilot?
+## Why Use It?
 
-Modern applications rarely consist of a single project.
+Use DevPilot when a developer has to remember things like:
+
+```bash
+cd apps/web && pnpm dev
+cd apps/api && pnpm start:dev
+cd workers/email && pnpm dev
+docker compose up -d postgres redis
+```
+
+DevPilot lets that workflow live in one config, then the project gets one command.
+
+It is useful for:
+
+- starting multiple local services
+- opening services in terminal tabs where supported
+- keeping per-service logs
+- checking which DevPilot-managed services are running
+- stopping or restarting those services safely
+- creating profiles like `frontend`, `backend`, or `fullstack`
+- adding project hooks such as `docker compose up -d`
+
+It is not meant for:
+
+- production orchestration
+- container networking
+- build caching
+- replacing `docker compose`, Turborepo, Nx, pnpm, npm, Yarn, or Bun
+
+## What Stacks Work?
+
+DevPilot works best with JavaScript and TypeScript workspaces where services live in folders with `package.json`.
+
+It detects:
+
+- package managers: npm, Yarn, pnpm, Bun
+- workspace layouts: Turborepo, Nx, pnpm workspace, Lerna, package.json workspaces
+- common folders: `apps/`, `packages/`, `services/`, `frontend/`, `backend/`, `api/`, `admin/`, `worker/`, `mobile/`, `landing/`
+- frameworks: Next.js, React, Vite, Vue, Angular, Astro, Remix, VitePress, NestJS, Express, Fastify
+
+You can still edit `.devpilot.json` and use custom commands. If a service can be started from a folder with a shell command, DevPilot can usually manage it.
+
+## Example: Full-Stack App
 
 ```text
-my-project/
-├── backend/
-├── frontend/
-├── admin/
-├── landing/
-├── docs/
-└── worker/
+my-app/
+  backend/
+    package.json
+  frontend/
+    package.json
+  worker/
+    package.json
 ```
 
-Without DevPilot, developers often need to:
-
-* Open multiple terminal windows
-* Navigate between directories repeatedly
-* Remember different commands for every service
-* Create custom shell scripts
-* Spend extra time onboarding new team members
-
-DevPilot removes that friction by configuring your workspace once and exposing a single project command.
+Run setup:
 
 ```bash
-my-services
+cd my-app
+devpilot setup
 ```
 
-No more remembering where everything lives.
+DevPilot detects the services and writes:
 
----
+```json
+{
+  "alias": "my-app",
+  "packageManager": "pnpm",
+  "launchMode": "tabs",
+  "services": [
+    {
+      "dir": "backend",
+      "name": "Backend",
+      "dev": "pnpm dev",
+      "build": "pnpm build",
+      "lint": "pnpm lint",
+      "framework": "NestJS",
+      "port": 3000
+    },
+    {
+      "dir": "frontend",
+      "name": "Frontend",
+      "dev": "pnpm dev",
+      "build": "pnpm build",
+      "lint": "pnpm lint",
+      "framework": "Next.js",
+      "port": 3000
+    },
+    {
+      "dir": "worker",
+      "name": "Worker",
+      "dev": "pnpm dev",
+      "build": "pnpm build",
+      "lint": "pnpm lint"
+    }
+  ]
+}
+```
 
-# Why not just use Turborepo, Nx or Docker Compose?
-
-Because they solve different problems.
-
-| Tool                      | Primary Purpose                                |
-| ------------------------- | ---------------------------------------------- |
-| **Turborepo**             | Task pipelines, caching and incremental builds |
-| **Nx**                    | Monorepo architecture and task execution       |
-| **Docker Compose**        | Container orchestration                        |
-| **npm / pnpm Workspaces** | Package management                             |
-| **DevPilot**              | Local developer workspace management           |
-
-DevPilot **does not replace** these tools.
-
-Instead, it works alongside them.
-
-For example, your project may already use Turborepo for builds and Docker Compose for containers. DevPilot simply becomes the single entry point that developers use every day.
+Then:
 
 ```bash
-my-services
+my-app dev
+my-app status
+my-app logs
+my-app stop
 ```
 
-From there they can:
+## Example: Monorepo
 
-* Start development servers
-* Install dependencies
-* Build services
-* Run lint checks
-* See running services
-* Follow and clear service logs
-* Restart or stop services
-* Clean generated files and logs
-* Verify project health
-* Update repositories
+```text
+product/
+  apps/
+    web/
+    api/
+    admin/
+  packages/
+    ui/
+  turbo.json
+  pnpm-workspace.yaml
+```
 
-One command.
+DevPilot can detect the workspace and service folders, then run the local commands from each service directory.
 
-One workflow.
+```bash
+product dev
+product build
+product lint
+product doctor
+```
 
----
+If the repo already uses Turborepo or Nx, keep using them. DevPilot can run your existing commands; it is just the project-level launcher.
 
-# Features
+## Example: App Services Plus Docker Infra
 
-* 🚀 One memorable command per project
-* ⚡ Interactive terminal interface
-* 📦 Supports npm, Yarn, pnpm and Bun
-* 🔍 Automatically detects service folders
-* 🛠 Guided project setup
-* 🖥 Launch services in terminal tabs (where supported)
-* 🎛 Workspace profiles for frontend, backend, full-stack, mobile or custom workflows
-* 🧩 Optional profile environment variables, startup dependencies and launch delays
-* ⚙️ Before/after development hooks for repeatable automation
-* 🧭 Workspace status for DevPilot-managed services
-* 📜 Local service logs under `.devpilot/runtime/logs/`
-* 🔁 Restart and stop services started by DevPilot
-* 📂 Works from anywhere after setup
-* 🧹 Built-in install, build, lint, clean, status, logs, stop, restart, profiles, doctor, update and upgrade commands
-* 🔄 Automatic background update notifications with an interactive menu action
-* 🔒 Keeps machine-specific configuration out of Git by default
-* 🌎 Cross-platform
+Use Docker Compose for infrastructure. Use DevPilot for the developer workflow.
 
----
+```json
+{
+  "hooks": {
+    "beforeDev": ["docker compose up -d postgres redis"]
+  },
+  "services": [
+    {
+      "dir": "apps/api",
+      "name": "API",
+      "dev": "pnpm dev",
+      "build": "pnpm build",
+      "lint": "pnpm lint"
+    },
+    {
+      "dir": "apps/web",
+      "name": "Web",
+      "dev": "pnpm dev",
+      "build": "pnpm build",
+      "lint": "pnpm lint"
+    }
+  ]
+}
+```
 
-# Installation
+Now one command starts the infra hook and the app services:
 
-Install globally.
+```bash
+my-app dev
+```
+
+This is the difference:
+
+- Docker Compose runs containers.
+- DevPilot runs the local developer workflow around your project.
+
+## Profiles
+
+Profiles let people start only the part of the workspace they need.
+
+```json
+{
+  "profiles": {
+    "frontend": ["apps/web", "apps/admin"],
+    "backend": ["apps/api", "workers/email"],
+    "fullstack": ["*"]
+  }
+}
+```
+
+Use them like this:
+
+```bash
+my-app dev frontend
+my-app status backend
+my-app logs api
+```
+
+When multiple profiles exist, the interactive menu asks which profile to use.
+
+## Service Dependencies
+
+Services can start in dependency order.
+
+```json
+{
+  "services": [
+    {
+      "dir": "apps/api",
+      "name": "API",
+      "dev": "pnpm dev"
+    },
+    {
+      "dir": "apps/web",
+      "name": "Web",
+      "dev": "pnpm dev",
+      "dependsOn": ["API"],
+      "delay": 2000
+    }
+  ]
+}
+```
+
+`dependsOn` starts API first. `delay` waits before Web starts.
+
+## Logs And Process Management
+
+DevPilot tracks only services it starts. Runtime state stays inside the project:
+
+```text
+.devpilot/runtime/
+  logs/
+  registry.json
+```
+
+Commands:
+
+```bash
+my-app status
+my-app logs
+my-app logs api
+my-app logs clear
+my-app restart api
+my-app stop
+```
+
+Each `dev` run clears saved logs for the services it is about to start, so log output starts fresh for the current run.
+
+DevPilot does not scan your machine for random processes and kill them. It only stops services recorded in its own runtime registry.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `dev` | Start configured services |
+| `install` | Install dependencies in each service |
+| `build` | Run build commands |
+| `lint` | Run lint commands |
+| `status` | Show DevPilot-managed service state |
+| `logs` | Follow or clear service logs |
+| `stop` | Stop DevPilot-managed services |
+| `restart` | Restart services |
+| `clean` | Remove generated folders and clear logs |
+| `doctor` | Check local tools and config |
+| `update` | Pull project changes and reinstall dependencies |
+| `upgrade` | Update DevPilot itself |
+| `profiles` | List workspace profiles |
+| `profile` | Create, edit, or delete profiles |
+| `about` | Show package and project info |
+
+## Install
 
 ```bash
 npm install -g @cbhasib/devpilot
 ```
 
-Or use your preferred package manager.
+Other package managers:
 
 ```bash
 yarn global add @cbhasib/devpilot
-```
-
-```bash
 pnpm add -g @cbhasib/devpilot
-```
-
-```bash
 bun add -g @cbhasib/devpilot
 ```
 
-Verify the installation.
+Verify:
 
 ```bash
 devpilot --version
 devpilot help
 ```
 
----
+## Setup
 
-# Getting Started
-
-Navigate to your project root.
-
-```bash
-cd /path/to/my-project
-```
-
-Run the setup wizard.
+Run setup from your project root:
 
 ```bash
 devpilot setup
 ```
 
-DevPilot will guide you through:
-
-* Project name
-* Global command alias
-* Package manager
-* Launch mode
-* Service discovery
-* Development, build and lint commands
-
-Example:
-
-```text
-Project Name : My Project
-Alias        : my-services
-Package      : yarn
-Launch Mode  : tabs
-```
-
-After setup, DevPilot generates:
+Setup creates:
 
 ```text
 .devpilot.json
 ```
 
-and automatically adds the following to your project's `.gitignore`:
+It also updates `.gitignore` with:
 
 ```gitignore
 .devpilot.json
 .devpilot/
 ```
 
-This keeps machine-specific paths and preferences out of version control.
+By default, setup keeps `.devpilot.json` local because alias, editor, and launch mode can be personal. If your team wants one shared workflow, remove `.devpilot.json` from `.gitignore`, commit a reviewed config, and keep `.devpilot/` ignored for runtime state.
 
----
+## Updating DevPilot
 
-# Running Your Workspace
+DevPilot checks for new versions in the background. When an update is available, the interactive menu shows an update notice and supports pressing `U` to upgrade.
 
-Open the interactive workspace.
-
-```bash
-my-services
-```
-
-Or execute commands directly.
-
-```bash
-my-services dev
-my-services dev frontend
-my-services install
-my-services build
-my-services build backend
-my-services lint
-my-services clean
-my-services status
-my-services logs
-my-services restart backend
-my-services stop
-my-services profiles
-my-services profile create
-my-services doctor
-my-services update
-my-services upgrade
-my-services about
-```
-
-Inside the project directory you can also use:
-
-```bash
-devpilot
-devpilot dev
-devpilot doctor
-```
-
----
-
-# Available Commands
-
-| Command   | Description                                                                  |
-| --------- | ---------------------------------------------------------------------------- |
-| `dev`     | Start all configured services                                                |
-| `install` | Install dependencies                                                         |
-| `build`   | Build every configured service                                               |
-| `lint`    | Run lint commands                                                            |
-| `clean`   | Remove generated folders and clear DevPilot logs                             |
-| `status`  | Show DevPilot-managed service state and uptime                               |
-| `logs`    | Follow or clear logs for all services or a specific service                  |
-| `stop`    | Stop all DevPilot-managed services or one named service                      |
-| `restart` | Restart all runnable services or one named service                           |
-| `profiles` | List workspace profiles                                                     |
-| `profile`  | Create, edit or delete workspace profiles                                   |
-| `doctor`  | Verify local tools and project configuration                                 |
-| `update`  | Pull the latest Git changes and reinstall dependencies                       |
-| `upgrade` | Update the DevPilot CLI itself                                               |
-| `about`   | Display DevPilot information                                                 |
-
----
-
-# Workspace Profiles
-
-Profiles let you run only the services you need.
-
-```bash
-my-services dev frontend
-my-services build backend
-my-services install fullstack
-my-services doctor mobile
-```
-
-Manage profiles from the CLI.
-
-```bash
-my-services profiles
-my-services profile create
-my-services profile edit frontend
-my-services profile delete backend
-```
-
-Profiles are optional. Existing projects without profiles behave exactly as before.
-
-```json
-{
-  "profiles": {
-    "frontend": ["frontend", "admin"],
-    "backend": ["backend", "worker"],
-    "fullstack": ["*"]
-  }
-}
-```
-
-Profiles can also set temporary environment variables while services are launched.
-
-```json
-{
-  "profiles": {
-    "frontend": {
-      "services": ["frontend"],
-      "env": {
-        "NODE_ENV": "development"
-      }
-    }
-  }
-}
-```
-
-Opening `my-services` shows a profile picker when multiple profiles exist, then opens the normal menu for that profile.
-
----
-
-# Automation
-
-Hooks run before or after `dev`.
-
-```json
-{
-  "hooks": {
-    "beforeDev": ["pnpm install"],
-    "afterDev": ["open http://localhost:3000"]
-  }
-}
-```
-
-Services can declare startup dependencies and delays.
-
-```json
-{
-  "services": [
-    {
-      "dir": "backend",
-      "name": "Backend",
-      "dev": "pnpm dev",
-      "dependsOn": ["database"],
-      "delay": 3000
-    }
-  ]
-}
-```
-
-DevPilot launches dependency batches in order and parallelizes services that do not depend on each other.
-
----
-
-# Managing Running Services
-
-DevPilot tracks only the services it starts. Runtime data stays local in:
-
-```text
-.devpilot/runtime/
-├── logs/
-└── registry.json
-```
-
-Check what is running.
-
-```bash
-my-services status
-```
-
-Follow logs without stopping services.
-
-```bash
-my-services logs
-my-services logs backend
-```
-
-Each `dev` launch clears saved logs for the services it is about to start, so the next log view begins with the current run.
-
-Clear saved logs.
-
-```bash
-my-services logs clear
-my-services logs clear backend
-```
-
-Restart or stop services.
-
-```bash
-my-services restart
-my-services restart backend
-
-my-services stop
-my-services stop backend
-```
-
-DevPilot never scans for or kills random processes on your machine.
-
----
-
-# Global Project Aliases
-
-During setup, DevPilot creates a global command that points back to your project.
-
-For example:
-
-```bash
-devpilot setup
-```
-
-Alias:
-
-```text
-my-services
-```
-
-Now you can run your workspace from anywhere.
-
-```bash
-cd ~
-
-my-services
-my-services dev
-my-services build
-```
-
-No need to remember where the project lives.
-
----
-
-# Update Notifications
-
-DevPilot checks for new versions in the background (at most every 10 minutes) without slowing down your commands.
-
-When an update is available, the interactive menu shows a compact update panel:
-
-```text
-▲ DevPilot update available            v0.6.0 -> v0.6.1
-Press U to update or run devpilot upgrade
-```
-
-You can also update directly:
+Manual update:
 
 ```bash
 devpilot upgrade
 ```
 
-For non-interactive environments:
+Non-interactive:
 
 ```bash
 devpilot upgrade --yes
 ```
 
-The `update` command still belongs to your project: it pulls Git changes and reinstalls dependencies. Use `upgrade` when you want to update the DevPilot CLI itself.
-
-Disable update checks if needed:
+Disable update checks:
 
 ```bash
 export DEVPILOT_NO_UPDATE_CHECK=1
 ```
 
-Update checks are automatically skipped in CI and non-interactive environments.
+## Development
 
----
-
-# Example Project
-
-```text
-my-project/
-├── backend/
-├── frontend/
-├── admin/
-└── landing/
-```
-
-Configure once:
-
-```bash
-devpilot setup
-```
-
-Use forever:
-
-```bash
-my-services
-```
-
----
-
-# Development
-
-DevPilot is written in TypeScript. Source files live in `src/`, and compiled CommonJS output is generated into `dist/` for npm publishing.
-
-Useful contributor commands:
+DevPilot is written in TypeScript and compiled to CommonJS for npm.
 
 ```bash
 npm install
@@ -487,26 +364,31 @@ npm run check
 npm run pack:dry
 ```
 
-The executable wrapper at `bin/devpilot.js` loads `dist/cli.js`, so run `npm run build` before trying local CLI changes.
+Project map:
 
-Important types are documented in `src/types.ts`, including `DevPilotConfig`, `ServiceConfig`, `WorkspaceProfile`, `ProjectContext`, `RuntimeEntry` and `CommandDefinition`. Comments are focused around the less obvious areas: terminal prompt handling, update hotkeys, process management, runtime registry state, profile filtering, hooks and dependency scheduling.
+```text
+src/
+  cli.ts
+  commands/
+  profiles/
+  runtime/
+  workspace/
+  menu.ts
+  setup.ts
+  update-check.ts
+  types.ts
+```
 
-See `CONTRIBUTING.md` for the project map and release checklist.
+See `CONTRIBUTING.md` for contributor notes and release checks.
 
----
+## Author
 
-# Author
+Hasibul Hasan
 
-**Hasibul Hasan**
+- GitHub: https://github.com/cbHasib
+- npm: https://www.npmjs.com/~cbhasib
+- Website: https://hasib.me
 
-GitHub: https://github.com/cbHasib
-
-npm: https://www.npmjs.com/~cbhasib
-
-Website: https://hasib.me
-
----
-
-# License
+## License
 
 MIT
