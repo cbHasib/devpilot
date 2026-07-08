@@ -12,7 +12,8 @@ function cleanService(service) {
     name: String(service.name || '').trim(),
     dev: String(service.dev || '').trim(),
     build: String(service.build || '').trim(),
-    lint: String(service.lint || '').trim()
+    lint: String(service.lint || '').trim(),
+    color: String(service.color || '').trim()
   };
 }
 

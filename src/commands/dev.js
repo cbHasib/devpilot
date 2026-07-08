@@ -14,6 +14,7 @@ const {
   style
 } = require('../ui');
 const { commandExists, isWsl, shellQuote, appleQuote, winQuote, servicePath } = require('../utils');
+const { TAB_COLORS } = require('../constants');
 
 async function startDevelopment(context) {
   const { config } = context;
@@ -118,9 +119,10 @@ function openGnomeTabs(context, services) {
 
 function openWindowsTabs(context, services) {
   const command = services
-    .map((service) => {
+    .map((service, index) => {
       const dir = winQuote(servicePath(context, service));
-      return `new-tab --title ${winQuote(service.name)} -d ${dir} cmd /k ${winQuote(service.dev)}`;
+      const color = tabColor(service, index);
+      return `new-tab --title ${winQuote(service.name)} --tabColor ${winQuote(color)} -d ${dir} cmd /k ${winQuote(service.dev)}`;
     })
     .join(' ; ');
 
@@ -131,6 +133,10 @@ function openWindowsTabs(context, services) {
     detached: true,
     stdio: 'ignore'
   }).unref();
+}
+
+function tabColor(service, index) {
+  return service.color || TAB_COLORS[index % TAB_COLORS.length];
 }
 
 function openWindowsWindows(context, services) {

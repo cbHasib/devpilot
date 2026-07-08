@@ -153,8 +153,9 @@ async function editService(service) {
   const dev = await answer(clack.text({ message: 'Dev command', initialValue: service.dev, placeholder: 'leave empty to skip' }));
   const build = await answer(clack.text({ message: 'Build command', initialValue: service.build, placeholder: 'leave empty to skip' }));
   const lint = await answer(clack.text({ message: 'Lint command', initialValue: service.lint, placeholder: 'leave empty to skip' }));
+  const color = await promptColor(service.color);
 
-  return cleanService({ dir, name, dev, build, lint });
+  return cleanService({ dir, name, dev, build, lint, color });
 }
 
 async function promptService(packageManager) {
@@ -165,8 +166,27 @@ async function promptService(packageManager) {
   const dev = await answer(clack.text({ message: 'Dev command', initialValue: scriptCommand(packageManager, 'dev'), placeholder: 'leave empty to skip' }));
   const build = await answer(clack.text({ message: 'Build command', initialValue: scriptCommand(packageManager, 'build'), placeholder: 'leave empty to skip' }));
   const lint = await answer(clack.text({ message: 'Lint command', initialValue: scriptCommand(packageManager, 'lint'), placeholder: 'leave empty to skip' }));
+  const color = await promptColor('');
 
-  return cleanService({ dir, name, dev, build, lint });
+  return cleanService({ dir, name, dev, build, lint, color });
+}
+
+async function promptColor(current) {
+  return answer(clack.select({
+    message: 'Terminal tab color',
+    options: [
+      { value: '', label: 'Auto', hint: 'assign a distinct color by position' },
+      { value: '#2563eb', label: 'Blue' },
+      { value: '#16a34a', label: 'Green' },
+      { value: '#db2777', label: 'Pink' },
+      { value: '#d97706', label: 'Amber' },
+      { value: '#7c3aed', label: 'Purple' },
+      { value: '#0891b2', label: 'Cyan' },
+      { value: '#dc2626', label: 'Red' },
+      { value: '#4b5563', label: 'Gray' }
+    ],
+    initialValue: current || ''
+  }));
 }
 
 module.exports = { setupProject };
