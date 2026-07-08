@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
@@ -12,7 +13,6 @@ const { shellQuote } = require('./utils');
 
 async function createGlobalAlias(alias, projectRoot) {
   const binDir = getGlobalBinDir();
-  fs.mkdirSync(binDir, { recursive: true });
 
   if (process.platform === 'win32') {
     return createWindowsAlias(binDir, alias, projectRoot);
@@ -22,7 +22,13 @@ async function createGlobalAlias(alias, projectRoot) {
 }
 
 async function createPosixAlias(binDir, alias, projectRoot) {
-  const aliasPath = path.join(binDir, alias);
+  // The npm global bin dir is often a root-owned system path (e.g. /usr/bin
+  // when Node came from the OS package manager). Fall back to a user-writable
+  // directory instead of forcing the user to run setup with sudo.
+  const targetDir = resolvePosixBinDir(binDir);
+  fs.mkdirSync(targetDir, { recursive: true });
+
+  const aliasPath = path.join(targetDir, alias);
   const cliPath = cliEntryPath();
   const content = [
     '#!/usr/bin/env bash',
@@ -38,11 +44,47 @@ async function createPosixAlias(binDir, alias, projectRoot) {
   }
 
   fs.chmodSync(aliasPath, 0o755);
+  warnIfNotOnPath(targetDir, alias);
 
   return aliasPath;
 }
 
+function resolvePosixBinDir(preferred) {
+  if (canWriteDir(preferred)) {
+    return preferred;
+  }
+
+  return path.join(os.homedir(), '.local', 'bin');
+}
+
+function canWriteDir(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function warnIfNotOnPath(dir, alias) {
+  const entries = (process.env.PATH || '')
+    .split(path.delimiter)
+    .filter(Boolean)
+    .map((entry) => path.resolve(entry));
+
+  if (entries.includes(path.resolve(dir))) {
+    return;
+  }
+
+  clack.log.warn(`${dir} is not on your PATH, so "${alias}" may not be found yet.`);
+  clack.log.warn(`Add it with:  echo 'export PATH="${dir}:$PATH"' >> ~/.profile`);
+  clack.log.warn('Then restart your shell, or run: source ~/.profile');
+}
+
 async function createWindowsAlias(binDir, alias, projectRoot) {
+  fs.mkdirSync(binDir, { recursive: true });
+
   const cliPath = cliEntryPath();
 
   const cmdPath = path.join(binDir, `${alias}.cmd`);
