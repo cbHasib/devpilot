@@ -107,7 +107,13 @@ function cliEntryPath() {
 
 function getGlobalBinDir() {
   try {
-    const prefix = execFileSync('npm', ['prefix', '-g'], { encoding: 'utf8' }).trim();
+    // On Windows `npm` is `npm.cmd`, which cannot be spawned without a shell.
+    // Without this the lookup throws and falls back to the Node install dir
+    // (e.g. C:\Program Files\nodejs), which needs admin rights to write to.
+    const prefix = execFileSync('npm', ['prefix', '-g'], {
+      encoding: 'utf8',
+      shell: process.platform === 'win32'
+    }).trim();
     return process.platform === 'win32' ? prefix : path.join(prefix, 'bin');
   } catch (error) {
     return path.dirname(process.execPath);

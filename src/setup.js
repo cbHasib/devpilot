@@ -127,7 +127,12 @@ async function setupProject() {
   let aliasPath = null;
 
   if (shouldCreateAlias) {
-    aliasPath = await createGlobalAlias(alias, root);
+    try {
+      aliasPath = await createGlobalAlias(alias, root);
+    } catch (error) {
+      clack.log.warn(`Could not create the global alias: ${error.message}`);
+      clack.log.warn(`Run "${alias}" via "devpilot" for now, or re-run setup from an elevated terminal.`);
+    }
   }
 
   const summary = [
