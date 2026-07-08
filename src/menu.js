@@ -4,39 +4,28 @@ const clack = require('@clack/prompts');
 
 const { clearScreen, header, line, paint, style, padVisible, waitForEnter } = require('./ui');
 const { error: logError } = require('./logger');
+const { selectOption } = require('./search-select');
+const { cachedUpdate, printMenuUpdateBanner } = require('./update-check');
 const { statusMark, workspaceStatus } = require('./runtime/status');
 
 async function showMenu(context, runCommand) {
   while (true) {
+    const update = cachedUpdate();
+
     clearScreen();
     header(context.config);
     printServiceOverview(context.config);
     printRuntimeOverview(context);
+    printMenuUpdateBanner(update);
     line();
 
-    const action = await clack.select({
+    const action = await selectOption({
       message: 'What would you like to do?',
-      options: [
-        { value: 'dev', label: 'Start Development', hint: 'launch every service in its own tab' },
-        { value: 'install', label: 'Install Dependencies', hint: 'install packages for all services' },
-        { value: 'build', label: 'Build All Services', hint: 'run each service build script' },
-        { value: 'lint', label: 'Lint All Services', hint: 'run each service lint script' },
-        { value: 'open', label: 'Open Directory', hint: 'open the project or a service in your file manager' },
-        { value: 'code', label: 'Open in Editor', hint: 'open the project or a service in your editor' },
-        { value: 'clean', label: 'Clean Project', hint: 'remove node_modules, dist, and caches' },
-        { value: 'status', label: 'Workspace Status', hint: 'show managed service state' },
-        { value: 'logs', label: 'Logs', hint: 'follow DevPilot-managed service logs' },
-        { value: 'restart', label: 'Restart', hint: 'restart managed services' },
-        { value: 'stop', label: 'Stop', hint: 'stop managed services' },
-        { value: 'info', label: 'Workspace Info', hint: 'show detected frameworks and workspace details' },
-        { value: 'doctor', label: 'Doctor', hint: 'check local tooling and configuration' },
-        { value: 'update', label: 'Update Project', hint: 'pull latest changes and reinstall' },
-        { value: 'about', label: 'About', hint: 'version and project links' },
-        { value: 'exit', label: 'Exit', hint: 'leave DevPilot' }
-      ]
+      visibleLimit: 16,
+      options: menuOptions(update)
     });
 
-    if (clack.isCancel(action) || action === 'exit') {
+    if (clack.isCancel(action) || action === null || action === 'exit') {
       farewell();
       return;
     }
@@ -57,6 +46,42 @@ async function showMenu(context, runCommand) {
     line();
     await waitForEnter(`  ${paint('Press Enter to return to the menu…', 'dim')}`);
   }
+}
+
+function menuOptions(update) {
+  const options = [
+    { value: 'dev', label: 'Start Development', hint: 'launch every service in its own tab' },
+    { value: 'install', label: 'Install Dependencies', hint: 'install packages for all services' },
+    { value: 'build', label: 'Build All Services', hint: 'run each service build script' },
+    { value: 'lint', label: 'Lint All Services', hint: 'run each service lint script' },
+    { value: 'open', label: 'Open Directory', hint: 'open the project or a service in your file manager' },
+    { value: 'code', label: 'Open in Editor', hint: 'open the project or a service in your editor' },
+    { value: 'clean', label: 'Clean Project', hint: 'remove node_modules, dist, and caches' },
+    { value: 'status', label: 'Workspace Status', hint: 'show managed service state' },
+    { value: 'logs', label: 'Logs', hint: 'follow DevPilot-managed service logs' },
+    { value: 'restart', label: 'Restart', hint: 'restart managed services' },
+    { value: 'stop', label: 'Stop', hint: 'stop managed services' },
+    { value: 'info', label: 'Workspace Info', hint: 'show detected frameworks and workspace details' },
+    { value: 'doctor', label: 'Doctor', hint: 'check local tooling and configuration' },
+    { value: 'update', label: 'Update Project', hint: 'pull latest changes and reinstall' },
+    { value: 'about', label: 'About', hint: 'version and project links' },
+    { value: 'exit', label: 'Exit', hint: 'leave DevPilot' }
+  ];
+
+  if (!update) {
+    return options;
+  }
+
+  return [
+    {
+      value: 'upgrade',
+      label: 'Update DevPilot',
+      hint: `v${update.current} -> v${update.latest}`,
+      shortcut: 'u',
+      shortcutLabel: 'update'
+    },
+    ...options
+  ];
 }
 
 function printRuntimeOverview(context) {

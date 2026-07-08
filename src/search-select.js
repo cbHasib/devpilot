@@ -14,7 +14,7 @@ async function selectOption(options) {
   return searchableSelect(options);
 }
 
-function searchableSelect({ message, options }) {
+function searchableSelect({ message, options, visibleLimit }) {
   return new Promise((resolve) => {
     const input = process.stdin;
     const output = process.stdout;
@@ -22,6 +22,7 @@ function searchableSelect({ message, options }) {
       selected: 0,
       query: '',
       searching: false,
+      visibleLimit,
       renderedLines: 0
     };
 
@@ -63,6 +64,15 @@ function searchableSelect({ message, options }) {
 
         cleanup(null);
         return;
+      }
+
+      if (!state.searching) {
+        const shortcut = matchingShortcut(options, chunk, key);
+
+        if (shortcut) {
+          cleanup(shortcut.value);
+          return;
+        }
       }
 
       if (key.name === 'down') {
@@ -110,27 +120,33 @@ function render(output, state, message, options) {
   const filtered = filteredOptions(options, state.query);
   const lines = [
     `  ${paint('?', 'accent')} ${style(message, 'white', 'bold')}`,
-    searchLine(state)
+    searchLine(state, options)
   ];
 
   if (filtered.length === 0) {
     lines.push(`    ${paint('No matches', 'dim')}`);
   } else {
-    visibleOptions(filtered, state.selected).forEach((option, visibleIndex) => {
+    const visible = visibleOptions(filtered, state.selected, optionLimit(filtered.length, state.visibleLimit));
+    const firstIndex = visible[0] ? visible[0].index : 0;
+
+    if (firstIndex > 0) {
+      lines.push(`    ${paint(`↑ ${firstIndex} more`, 'dim')}`);
+    }
+
+    visible.forEach((option) => {
       const index = option.index;
       const marker = index === state.selected ? paint('>', 'accent') : ' ';
+      const shortcut = option.shortcut ? `${paint(String(option.shortcut).toUpperCase(), 'cyan')} ${paint('·', 'gray')} ` : '';
       const label = index === state.selected ? style(option.label, 'white', 'bold') : option.label;
       const hint = option.hint ? ` ${paint(option.hint, 'dim')}` : '';
 
-      lines.push(`  ${marker} ${label}${hint}`);
-
-      if (visibleIndex === 0 && option.index > 0) {
-        lines.splice(lines.length - 1, 0, `    ${paint('...', 'dim')}`);
-      }
+      lines.push(`  ${marker} ${shortcut}${label}${hint}`);
     });
 
-    if (state.selected < filtered.length - 8) {
-      lines.push(`    ${paint('...', 'dim')}`);
+    const remaining = filtered.length - firstIndex - visible.length;
+
+    if (remaining > 0) {
+      lines.push(`    ${paint(`↓ ${remaining} more`, 'dim')}`);
     }
   }
 
@@ -138,12 +154,15 @@ function render(output, state, message, options) {
   state.renderedLines = lines.reduce((count, lineValue) => count + Math.max(1, Math.ceil(visibleLength(lineValue) / terminalWidth())), 0);
 }
 
-function searchLine(state) {
+function searchLine(state, options) {
   if (state.searching) {
     return `  ${paint('/', 'accent')} ${state.query || paint('type to search', 'dim')}`;
   }
 
-  return `    ${paint('Press / to search, Enter to choose, Esc to cancel', 'dim')}`;
+  const shortcuts = shortcutHelp(options);
+  const shortcutText = shortcuts ? `, ${shortcuts}` : '';
+
+  return `    ${paint(`Press / to search${shortcutText}, Enter to choose, Esc to cancel`, 'dim')}`;
 }
 
 function filteredOptions(options, query) {
@@ -159,12 +178,58 @@ function filteredOptions(options, query) {
   });
 }
 
-function visibleOptions(options, selected) {
-  const start = Math.max(0, Math.min(selected - 3, options.length - 8));
-  return options.slice(start, start + 8).map((option, index) => ({
+function visibleOptions(options, selected, limit) {
+  const start = Math.max(0, Math.min(selected - Math.floor(limit / 2), options.length - limit));
+
+  return options.slice(start, start + limit).map((option, index) => ({
     ...option,
     index: start + index
   }));
+}
+
+function optionLimit(total, requested) {
+  if (total <= 0) {
+    return 0;
+  }
+
+  const explicit = Number.isInteger(requested) && requested > 0 ? requested : null;
+  const availableRows = Math.max(8, Math.min(16, terminalHeight() - 7));
+
+  return Math.max(1, Math.min(total, explicit || availableRows));
+}
+
+function matchingShortcut(options, chunk, key = {}) {
+  if (key.ctrl || key.meta) {
+    return null;
+  }
+
+  const value = shortcutKey(chunk, key);
+
+  if (!value) {
+    return null;
+  }
+
+  return options.find((option) => String(option.shortcut || '').toLowerCase() === value) || null;
+}
+
+function shortcutKey(chunk, key = {}) {
+  if (key.name && key.name.length === 1) {
+    return key.name.toLowerCase();
+  }
+
+  if (chunk && chunk.length === 1 && chunk >= ' ') {
+    return chunk.toLowerCase();
+  }
+
+  return null;
+}
+
+function shortcutHelp(options) {
+  const shortcuts = options
+    .filter((option) => option.shortcut)
+    .map((option) => `${String(option.shortcut).toUpperCase()} ${option.shortcutLabel || option.label}`);
+
+  return shortcuts.join(', ');
 }
 
 function moveSelection(state, options, direction) {
@@ -189,6 +254,10 @@ function clearPrompt(output, lines) {
 
 function terminalWidth() {
   return Math.max(20, process.stdout.columns || 80);
+}
+
+function terminalHeight() {
+  return Math.max(12, process.stdout.rows || 24);
 }
 
 module.exports = { selectOption };

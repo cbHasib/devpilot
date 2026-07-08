@@ -102,8 +102,8 @@ One workflow.
 * 📜 Local service logs under `.devpilot/runtime/logs/`
 * 🔁 Restart and stop services started by DevPilot
 * 📂 Works from anywhere after setup
-* 🧹 Built-in install, build, lint, clean, status, logs, stop, restart, doctor and update commands
-* 🔄 Automatic background update notifications
+* 🧹 Built-in install, build, lint, clean, status, logs, stop, restart, doctor, update and upgrade commands
+* 🔄 Automatic background update notifications with an interactive menu action
 * 🔒 Keeps machine-specific configuration out of Git by default
 * 🌎 Cross-platform
 
@@ -211,6 +211,7 @@ my-services restart backend
 my-services stop
 my-services doctor
 my-services update
+my-services upgrade
 my-services about
 ```
 
@@ -239,6 +240,7 @@ devpilot doctor
 | `restart` | Restart all runnable services or one named service                           |
 | `doctor`  | Verify local tools and project configuration                                 |
 | `update`  | Pull the latest Git changes and reinstall dependencies                       |
+| `upgrade` | Update the DevPilot CLI itself                                               |
 | `about`   | Display DevPilot information                                                 |
 
 ---
@@ -312,18 +314,28 @@ No need to remember where the project lives.
 
 # Update Notifications
 
-DevPilot checks for new versions in the background (at most once per day) without slowing down your commands.
+DevPilot checks for new versions in the background (at most every 10 minutes) without slowing down your commands.
 
-When an update is available you'll see:
+When an update is available, the interactive menu shows a compact update panel:
 
 ```text
-▲ Update available
-v0.2.0 → v0.2.1
-
-Run:
-
-npm install -g @cbhasib/devpilot@latest
+▲ DevPilot update available            v0.5.0 -> v0.5.1
+Press U in this menu or run devpilot upgrade
 ```
+
+You can also update directly:
+
+```bash
+devpilot upgrade
+```
+
+For non-interactive environments:
+
+```bash
+devpilot upgrade --yes
+```
+
+The `update` command still belongs to your project: it pulls Git changes and reinstalls dependencies. Use `upgrade` when you want to update the DevPilot CLI itself.
 
 Disable update checks if needed:
 

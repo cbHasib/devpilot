@@ -43,12 +43,12 @@ async function main() {
     return;
   }
 
-  scheduleUpdateCheck();
+  scheduleUpdateCheck({ notifyOnExit: shouldPrintExitUpdateNotice(command) });
 
   const commandDefinition = findCommand(command);
 
   if (commandDefinition && commandDefinition.requiresContext === false) {
-    await commandDefinition.handler();
+    await commandDefinition.handler(null, parsed.args.slice(1));
     return;
   }
 
@@ -100,6 +100,14 @@ async function runCommand(command, context, args = []) {
   }
 
   await commandDefinition.handler(context, args, runCommand);
+}
+
+function shouldPrintExitUpdateNotice(command) {
+  if (!command || command === 'menu') {
+    return false;
+  }
+
+  return !['upgrade', 'self-update', 'selfupdate'].includes(command);
 }
 
 module.exports = { main };

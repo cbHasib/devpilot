@@ -11,6 +11,7 @@ const { restartServices } = require('./restart');
 const { showLogs } = require('./logs');
 const { doctor } = require('./doctor');
 const { updateProject } = require('./update');
+const { upgradeDevPilot } = require('./upgrade');
 const { showAbout } = require('./about');
 const { openDirectory, openInEditor } = require('./open');
 const { showStatus } = require('./status');
@@ -105,6 +106,13 @@ const commands = [
     name: 'update',
     description: 'Pull latest changes and install dependencies',
     handler: updateProject
+  },
+  {
+    name: 'upgrade',
+    description: 'Update the DevPilot CLI',
+    aliases: ['self-update', 'selfupdate'],
+    requiresContext: false,
+    handler: upgradeDevPilot
   },
   {
     name: 'about',
