@@ -9,6 +9,7 @@ const { warning, error } = require('./logger');
 const { loadProjectContext } = require('./config');
 const { scheduleUpdateCheck } = require('./update-check');
 const { findCommand, visibleCommands } = require('./commands/registry');
+const { applyProfileArg, listProfiles } = require('./profiles/manager');
 
 function parseArgs(argv) {
   const args = [];
@@ -99,7 +100,18 @@ async function runCommand(command, context, args = []) {
     return;
   }
 
-  await commandDefinition.handler(context, args, runCommand);
+  const profileResult = commandProfileContext(commandDefinition, context, args);
+
+  if (!profileResult.ok) {
+    header(context.config);
+    profileResult.warnings.forEach((message) => warning(message));
+    printProfileHint(context);
+    process.exitCode = 1;
+    return;
+  }
+
+  profileResult.warnings.forEach((message) => warning(message));
+  await commandDefinition.handler(profileResult.context, profileResult.args, runCommand);
 }
 
 function shouldPrintExitUpdateNotice(command) {
@@ -108,6 +120,27 @@ function shouldPrintExitUpdateNotice(command) {
   }
 
   return !['upgrade', 'self-update', 'selfupdate'].includes(command);
+}
+
+function commandProfileContext(commandDefinition, context, args) {
+  if (!commandDefinition.profileMode) {
+    return { context, args, warnings: [], ok: true };
+  }
+
+  return applyProfileArg(context, args, {
+    strict: commandDefinition.profileMode === 'strict'
+  });
+}
+
+function printProfileHint(context) {
+  const profiles = listProfiles(context.config);
+
+  if (profiles.length === 0) {
+    line(`Run ${paint('devpilot profile create', 'cyan')} to create one.`);
+    return;
+  }
+
+  line(`Available profiles: ${profiles.map((profile) => paint(profile.id, 'cyan')).join(', ')}`);
 }
 
 module.exports = { main };

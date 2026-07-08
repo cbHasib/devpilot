@@ -6,12 +6,15 @@ const path = require('path');
 const { CONFIG_FILE, SUPPORTED_PACKAGE_MANAGERS } = require('../constants');
 const { isGitRepo, servicePath } = require('../utils');
 const { scanWorkspace } = require('./scanner');
+const { findService, listProfiles, normalizeHooks, tokenKey } = require('../profiles/manager');
+const { normalizeDelay, normalizeDependsOn, startupBatches } = require('../profiles/dependencies');
 
 const COMMAND_FIELDS = ['dev', 'build', 'lint'];
 
 function validateConfig(context, options = {}) {
   const config = context.config || {};
   const services = Array.isArray(config.services) ? config.services : [];
+  const allServices = Array.isArray(context.allServices) ? context.allServices : services;
   const scan = scanWorkspace(context.root);
   const warnings = [];
 
@@ -83,6 +86,10 @@ function validateConfig(context, options = {}) {
     warnings.push(...serviceWarnings(context, service, options));
   });
 
+  warnings.push(...profileWarnings(config, allServices));
+  warnings.push(...dependencyWarnings(context, allServices));
+  warnings.push(...hookWarnings(config));
+
   return warnings;
 }
 
@@ -138,6 +145,26 @@ function serviceWarnings(context, service, options = {}) {
       ));
     }
   });
+
+  normalizeDependsOn(service.dependsOn).forEach((dependency) => {
+    const dependencyServices = context.allServices || context.config.services || [];
+
+    if (!findService(dependencyServices, dependency)) {
+      warnings.push(warning(
+        'service.dependency',
+        `${label} depends on missing service "${dependency}".`,
+        `Update "dependsOn" for ${label} in ${CONFIG_FILE}.`
+      ));
+    }
+  });
+
+  if (service.delay !== undefined && normalizeDelay(service.delay) === 0 && Number(service.delay) !== 0) {
+    warnings.push(warning(
+      'service.delay',
+      `${label} startup delay is invalid.`,
+      `Use a positive number of milliseconds for "delay" in ${CONFIG_FILE}.`
+    ));
+  }
 
   return warnings;
 }
@@ -202,6 +229,79 @@ function duplicateServiceNames(services) {
   });
 
   return [...duplicates];
+}
+
+function profileWarnings(config, services) {
+  const warnings = [];
+  const seen = new Map();
+
+  listProfiles(config).forEach((profile) => {
+    const key = tokenKey(profile.name || profile.id);
+
+    if (seen.has(key)) {
+      warnings.push(warning(
+        'profiles.duplicateName',
+        `Duplicate profile name: ${profile.name}.`,
+        `Rename one profile in ${CONFIG_FILE} so command matching stays clear.`
+      ));
+    } else {
+      seen.set(key, profile.name);
+    }
+
+    profile.services
+      .filter((token) => token !== '*')
+      .forEach((token) => {
+        if (!findService(services, token)) {
+          warnings.push(warning(
+            'profiles.service',
+            `Profile "${profile.name}" references missing service "${token}".`,
+            `Update the "profiles" section in ${CONFIG_FILE}.`
+          ));
+        }
+      });
+  });
+
+  return warnings;
+}
+
+function dependencyWarnings(context, services) {
+  const plan = startupBatches({ ...context, allServices: services }, services);
+  const unique = new Set();
+
+  return plan.warnings
+    .filter((message) => !message.includes('depends on missing service'))
+    .filter((message) => {
+      if (unique.has(message)) {
+        return false;
+      }
+
+      unique.add(message);
+      return true;
+    })
+    .map((message) => warning(
+      'service.dependency',
+      message,
+      `Update "dependsOn" entries in ${CONFIG_FILE}.`
+    ));
+}
+
+function hookWarnings(config) {
+  const hooks = normalizeHooks(config.hooks);
+  const warnings = [];
+
+  Object.keys(hooks).forEach((name) => {
+    hooks[name].forEach((command) => {
+      if (isInvalidCommand(command)) {
+        warnings.push(warning(
+          'hooks.command',
+          `Hook "${name}" contains an invalid command.`,
+          `Use single-line hook commands in ${CONFIG_FILE}.`
+        ));
+      }
+    });
+  });
+
+  return warnings;
 }
 
 function isInvalidCommand(command) {

@@ -4,11 +4,20 @@ const clack = require('@clack/prompts');
 
 const { clearScreen, header, line, paint, style, padVisible, waitForEnter } = require('./ui');
 const { error: logError } = require('./logger');
-const { selectOption } = require('./search-select');
 const { cachedUpdate, printMenuUpdateBanner } = require('./update-check');
+const { contextForProfile, findProfile, listProfiles } = require('./profiles/manager');
 const { statusMark, workspaceStatus } = require('./runtime/status');
 
 async function showMenu(context, runCommand) {
+  const selectedContext = await chooseProfileContext(context);
+
+  if (!selectedContext) {
+    farewell();
+    return;
+  }
+
+  context = selectedContext;
+
   while (true) {
     const update = cachedUpdate();
 
@@ -19,9 +28,8 @@ async function showMenu(context, runCommand) {
     printMenuUpdateBanner(update);
     line();
 
-    const action = await selectOption({
+    const action = await clack.select({
       message: 'What would you like to do?',
-      visibleLimit: 16,
       options: menuOptions(update)
     });
 
@@ -64,6 +72,7 @@ function menuOptions(update) {
     { value: 'info', label: 'Workspace Info', hint: 'show detected frameworks and workspace details' },
     { value: 'doctor', label: 'Doctor', hint: 'check local tooling and configuration' },
     { value: 'update', label: 'Update Project', hint: 'pull latest changes and reinstall' },
+    { value: 'profiles', label: 'Profiles', hint: 'list and manage workspace profiles' },
     { value: 'about', label: 'About', hint: 'version and project links' },
     { value: 'exit', label: 'Exit', hint: 'leave DevPilot' }
   ];
@@ -76,12 +85,51 @@ function menuOptions(update) {
     {
       value: 'upgrade',
       label: 'Update DevPilot',
-      hint: `v${update.current} -> v${update.latest}`,
-      shortcut: 'u',
-      shortcutLabel: 'update'
+      hint: `v${update.current} -> v${update.latest}`
     },
     ...options
   ];
+}
+
+async function chooseProfileContext(context) {
+  const profiles = listProfiles(context.config);
+
+  if (profiles.length < 2 || !process.stdin.isTTY) {
+    return context;
+  }
+
+  clearScreen();
+  header(context.config);
+  line();
+
+  const choice = await clack.select({
+    message: 'Choose profile',
+    options: [
+      { value: '__all__', label: 'All Services', hint: 'use the full workspace' },
+      ...profiles.map((profile) => ({
+        value: profile.id,
+        label: profile.name,
+        hint: profile.services.includes('*') ? 'all services' : profile.services.join(', ')
+      }))
+    ]
+  });
+
+  if (clack.isCancel(choice)) {
+    return null;
+  }
+
+  if (choice === '__all__') {
+    return context;
+  }
+
+  const profile = findProfile(context.config, choice);
+  const resolved = contextForProfile(context, profile);
+
+  resolved.warnings.forEach((message) => {
+    line(`  ${paint('▲', 'yellow')} ${message}`);
+  });
+
+  return resolved.context;
 }
 
 function printRuntimeOverview(context) {

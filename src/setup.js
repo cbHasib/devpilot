@@ -27,6 +27,7 @@ const { createGlobalAlias } = require('./alias');
 const { answer, requiredField } = require('./prompts');
 const { detectWorkspace } = require('./workspace/detector');
 const { workspaceLabel } = require('./workspace/summary');
+const { recommendedProfiles } = require('./profiles/manager');
 
 async function setupProject() {
   const root = process.cwd();
@@ -103,6 +104,8 @@ async function setupProject() {
     }
   }
 
+  const profiles = await chooseRecommendedProfiles(services);
+
   const config = {
     schemaVersion: 1,
     projectName,
@@ -115,7 +118,9 @@ async function setupProject() {
     lastUpdated: '',
     devpilotVersion: pkg.version,
     workspace: detection.workspace,
-    features: {}
+    features: {},
+    profiles,
+    hooks: {}
   };
 
   writeConfig(root, config);
@@ -218,6 +223,9 @@ function printWorkspaceSummary(config, aliasPath) {
     'Services',
     String(config.services.length),
     '',
+    'Profiles',
+    String(Object.keys(config.profiles || {}).length),
+    '',
     'Alias',
     config.alias,
     '',
@@ -230,6 +238,27 @@ function printWorkspaceSummary(config, aliasPath) {
   ].filter((value) => value !== null).join('\n');
 
   clack.note(summary, 'Workspace Ready');
+}
+
+async function chooseRecommendedProfiles(services) {
+  const profiles = recommendedProfiles(services);
+  const names = Object.keys(profiles);
+
+  if (names.length === 0) {
+    return {};
+  }
+
+  const create = await answer(clack.confirm({
+    message: 'Create workspace profiles automatically?',
+    initialValue: true
+  }));
+
+  if (!create) {
+    return {};
+  }
+
+  success(`Profiles: ${names.map(titleCase).join(', ')}.`);
+  return profiles;
 }
 
 async function reviewDetectedServices(detectedServices) {

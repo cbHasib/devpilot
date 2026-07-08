@@ -4,13 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 
-function runShell(command, cwd) {
+function runShell(command, cwd, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, {
       cwd,
       shell: true,
       stdio: 'inherit',
-      env: process.env
+      env: { ...process.env, ...(options.env || {}) }
     });
 
     child.on('error', reject);

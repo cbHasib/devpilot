@@ -8,6 +8,7 @@ const { CONFIG_FILE, STATE_DIR } = require('./constants');
 const { defaultAlias, readJson, titleCase } = require('./utils');
 const { cleanService, detectPackageManager } = require('./services');
 const { scanWorkspace } = require('./workspace/scanner');
+const { normalizeHooks, normalizeProfiles } = require('./profiles/manager');
 
 function loadProjectContext(startDir) {
   const resolved = path.resolve(startDir);
@@ -62,6 +63,7 @@ function writeConfig(root, config) {
   next.lastUpdated = now;
   next.devpilotVersion = pkg.version;
   delete next._configError;
+  delete next.activeProfile;
 
   fs.writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`);
 }
@@ -89,6 +91,9 @@ function normalizeConfig(config, root, configError = null) {
     devpilotVersion: stringValue(source.devpilotVersion) || pkg.version,
     workspace: normalizeWorkspace(source.workspace),
     features: objectValue(source.features),
+    profiles: normalizeProfiles(source.profiles),
+    hooks: normalizeHooks(source.hooks),
+    activeProfile: undefined,
     _configError: configError ? configError.message : null
   };
 }

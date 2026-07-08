@@ -98,11 +98,14 @@ One workflow.
 * 🔍 Automatically detects service folders
 * 🛠 Guided project setup
 * 🖥 Launch services in terminal tabs (where supported)
+* 🎛 Workspace profiles for frontend, backend, full-stack, mobile or custom workflows
+* 🧩 Optional profile environment variables, startup dependencies and launch delays
+* ⚙️ Before/after development hooks for repeatable automation
 * 🧭 Workspace status for DevPilot-managed services
 * 📜 Local service logs under `.devpilot/runtime/logs/`
 * 🔁 Restart and stop services started by DevPilot
 * 📂 Works from anywhere after setup
-* 🧹 Built-in install, build, lint, clean, status, logs, stop, restart, doctor, update and upgrade commands
+* 🧹 Built-in install, build, lint, clean, status, logs, stop, restart, profiles, doctor, update and upgrade commands
 * 🔄 Automatic background update notifications with an interactive menu action
 * 🔒 Keeps machine-specific configuration out of Git by default
 * 🌎 Cross-platform
@@ -201,14 +204,18 @@ Or execute commands directly.
 
 ```bash
 my-services dev
+my-services dev frontend
 my-services install
 my-services build
+my-services build backend
 my-services lint
 my-services clean
 my-services status
 my-services logs
 my-services restart backend
 my-services stop
+my-services profiles
+my-services profile create
 my-services doctor
 my-services update
 my-services upgrade
@@ -238,10 +245,96 @@ devpilot doctor
 | `logs`    | Follow logs for all services or a specific service                           |
 | `stop`    | Stop all DevPilot-managed services or one named service                      |
 | `restart` | Restart all runnable services or one named service                           |
+| `profiles` | List workspace profiles                                                     |
+| `profile`  | Create, edit or delete workspace profiles                                   |
 | `doctor`  | Verify local tools and project configuration                                 |
 | `update`  | Pull the latest Git changes and reinstall dependencies                       |
 | `upgrade` | Update the DevPilot CLI itself                                               |
 | `about`   | Display DevPilot information                                                 |
+
+---
+
+# Workspace Profiles
+
+Profiles let you run only the services you need.
+
+```bash
+my-services dev frontend
+my-services build backend
+my-services install fullstack
+my-services doctor mobile
+```
+
+Manage profiles from the CLI.
+
+```bash
+my-services profiles
+my-services profile create
+my-services profile edit frontend
+my-services profile delete backend
+```
+
+Profiles are optional. Existing projects without profiles behave exactly as before.
+
+```json
+{
+  "profiles": {
+    "frontend": ["frontend", "admin"],
+    "backend": ["backend", "worker"],
+    "fullstack": ["*"]
+  }
+}
+```
+
+Profiles can also set temporary environment variables while services are launched.
+
+```json
+{
+  "profiles": {
+    "frontend": {
+      "services": ["frontend"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}
+```
+
+Opening `my-services` shows a profile picker when multiple profiles exist, then opens the normal menu for that profile.
+
+---
+
+# Automation
+
+Hooks run before or after `dev`.
+
+```json
+{
+  "hooks": {
+    "beforeDev": ["pnpm install"],
+    "afterDev": ["open http://localhost:3000"]
+  }
+}
+```
+
+Services can declare startup dependencies and delays.
+
+```json
+{
+  "services": [
+    {
+      "dir": "backend",
+      "name": "Backend",
+      "dev": "pnpm dev",
+      "dependsOn": ["database"],
+      "delay": 3000
+    }
+  ]
+}
+```
+
+DevPilot launches dependency batches in order and parallelizes services that do not depend on each other.
 
 ---
 
@@ -319,8 +412,8 @@ DevPilot checks for new versions in the background (at most every 10 minutes) wi
 When an update is available, the interactive menu shows a compact update panel:
 
 ```text
-▲ DevPilot update available            v0.5.0 -> v0.5.1
-Press U in this menu or run devpilot upgrade
+▲ DevPilot update available            v0.6.0 -> v0.6.1
+Choose Update DevPilot or run devpilot upgrade
 ```
 
 You can also update directly:

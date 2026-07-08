@@ -4,6 +4,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 
 const { servicePath, shellQuote } = require('../utils');
+const { profileEnv } = require('../profiles/manager');
 const { appendLog } = require('./logs');
 const {
   ensureRuntime,
@@ -33,7 +34,7 @@ function startService(context, service, options = {}) {
     shell: true,
     detached: process.platform !== 'win32',
     stdio: ['inherit', 'pipe', 'pipe'],
-    env: process.env
+    env: serviceEnv(context)
   });
   const key = serviceKey(service);
   const startedAt = new Date().toISOString();
@@ -103,7 +104,7 @@ function startDetachedService(context, service, cwd, logFile) {
     shell: true,
     detached: true,
     stdio: ['ignore', fd, fd],
-    env: process.env
+    env: serviceEnv(context)
   });
 
   upsertEntry(context.root, {
@@ -223,6 +224,10 @@ function spawnCommand(command) {
   }
 
   return `exec sh -c ${shellQuote(command)}`;
+}
+
+function serviceEnv(context) {
+  return { ...process.env, ...profileEnv(context) };
 }
 
 module.exports = {

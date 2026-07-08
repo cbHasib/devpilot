@@ -20,6 +20,10 @@ const { serviceExecutionIssue, serviceExecutionWarnings } = require('../validati
 const { startService } = require('../runtime/processManager');
 const { updateEntry } = require('../runtime/registry');
 const { confirmStopServices } = require('../runtime/signals');
+const { findProfile, findService: findConfiguredService, contextWithProfileEnv } = require('../profiles/manager');
+const { runHooks } = require('../profiles/hooks');
+const { normalizeDelay } = require('../profiles/dependencies');
+const { createLaunchPlan, runLaunchPlan } = require('../profiles/scheduler');
 
 async function startDevelopment(context) {
   const { config } = context;
@@ -50,7 +54,11 @@ async function startDevelopment(context) {
     return;
   }
 
-  section('Start Development');
+  const plan = createLaunchPlan(context, services);
+  plan.warnings.forEach((message) => warning(message));
+  printLaunchPlan(context, plan.services);
+
+  await runHooks(context, 'beforeDev');
 
   const wantTabs = config.launchMode !== 'current';
   const useMacTabs = wantTabs
@@ -73,32 +81,47 @@ async function startDevelopment(context) {
     && !useWindowsTabs;
 
   if (!useMacTabs && !useGnomeTabs && !useKonsoleTabs && !useWindowsTabs && !useWindowsWindows) {
-    await runDevHere(context, services);
+    await runDevHere(context, plan, () => runHooks(context, 'afterDev'));
     return;
   }
 
   line();
 
   let placement = 'in separate tabs';
+  let launcher = openWindowsWindow;
 
   if (useMacTabs) {
-    openMacTabs(context, services);
+    launcher = openMacTab;
   } else if (useGnomeTabs) {
-    openGnomeTabs(context, services);
+    launcher = openGnomeTab;
   } else if (useKonsoleTabs) {
-    openKonsoleTabs(context, services);
+    launcher = openKonsoleTab;
   } else if (useWindowsTabs) {
-    openWindowsTabs(context, services);
+    launcher = openWindowsTab;
   } else {
-    openWindowsWindows(context, services);
     placement = 'in separate windows';
   }
 
-  services.forEach((service) => {
+  let launched = 0;
+
+  await runLaunchPlan(plan, (service, index) => {
+    if (!service.dev) {
+      warning(`${service.name || service.dir} has no dev command and was skipped.`);
+      return;
+    }
+
+    launcher(context, service, index);
+    launched += 1;
     success(`${style(service.name, 'white', 'bold')}  ${paint('→', 'gray')}  ${paint(service.dev, 'dim')}`);
   });
 
-  devRunningBanner(services.length, placement);
+  if (launched === 0) {
+    warning('No services were launched.');
+    return;
+  }
+
+  await runHooks(context, 'afterDev');
+  devRunningBanner(launched, placement);
 }
 
 function devRunningBanner(count, placement) {
@@ -112,69 +135,76 @@ function devRunningBanner(count, placement) {
   line();
 }
 
-function openMacTabs(context, services) {
-  services.forEach((service) => {
-    const command = managedServiceCommand(context, service);
-    const script = [
-      'tell application "Terminal"',
-      'activate',
-      'tell application "System Events"',
-      'keystroke "t" using command down',
-      'end tell',
-      'delay 0.3',
-      `do script ${appleQuote(command)} in selected tab of front window`,
-      'end tell'
-    ].join('\n');
+function printLaunchPlan(context, services) {
+  const profile = context.config.activeProfile;
 
-    spawnSync('osascript', ['-e', script], { stdio: 'ignore' });
+  section(profile ? 'Launching Profile' : 'Launching Workspace');
+
+  if (profile) {
+    line(`    ${paint('profile', 'dim')}  ${style(profile.name, 'white', 'bold')}`);
+  }
+
+  line(`    ${paint('services', 'dim')}`);
+  services.forEach((service) => {
+    const delay = normalizeDelay(service.delay);
+    const suffix = delay > 0 ? paint(` delay ${delay}ms`, 'dim') : '';
+    line(`      ${style(service.name || service.dir, 'white', 'bold')} ${paint(service.dir, 'dim')}${suffix}`);
   });
 }
 
-function openGnomeTabs(context, services) {
-  services.forEach((service) => {
-    const command = `${managedServiceCommand(context, service)}; exec bash`;
-    spawn('gnome-terminal', [
-      '--tab',
-      `--title=${service.name}`,
-      '--',
-      'bash',
-      '-lc',
-      command
-    ], {
-      detached: true,
-      stdio: 'ignore'
-    }).unref();
-  });
+function openMacTab(context, service) {
+  const command = managedServiceCommand(context, service);
+  const script = [
+    'tell application "Terminal"',
+    'activate',
+    'tell application "System Events"',
+    'keystroke "t" using command down',
+    'end tell',
+    'delay 0.3',
+    `do script ${appleQuote(command)} in selected tab of front window`,
+    'end tell'
+  ].join('\n');
+
+  spawnSync('osascript', ['-e', script], { stdio: 'ignore' });
 }
 
-function openKonsoleTabs(context, services) {
-  services.forEach((service) => {
-    const command = `${managedServiceCommand(context, service)}; exec bash`;
-    spawn('konsole', [
-      '--new-tab',
-      '--workdir',
-      context.root,
-      '-p',
-      `tabtitle=${service.name}`,
-      '-e',
-      'bash',
-      '-lc',
-      command
-    ], {
-      detached: true,
-      stdio: 'ignore'
-    }).unref();
-  });
+function openGnomeTab(context, service) {
+  const command = `${managedServiceCommand(context, service)}; exec bash`;
+  spawn('gnome-terminal', [
+    '--tab',
+    `--title=${service.name}`,
+    '--',
+    'bash',
+    '-lc',
+    command
+  ], {
+    detached: true,
+    stdio: 'ignore'
+  }).unref();
 }
 
-function openWindowsTabs(context, services) {
-  const command = services
-    .map((service, index) => {
-      const dir = winQuote(context.root);
-      const color = tabColor(service, index);
-      return `new-tab --title ${winQuote(service.name)} --tabColor ${winQuote(color)} -d ${dir} cmd /k ${winQuote(managedServiceCommand(context, service, 'win'))}`;
-    })
-    .join(' ; ');
+function openKonsoleTab(context, service) {
+  const command = `${managedServiceCommand(context, service)}; exec bash`;
+  spawn('konsole', [
+    '--new-tab',
+    '--workdir',
+    context.root,
+    '-p',
+    `tabtitle=${service.name}`,
+    '-e',
+    'bash',
+    '-lc',
+    command
+  ], {
+    detached: true,
+    stdio: 'ignore'
+  }).unref();
+}
+
+function openWindowsTab(context, service, index) {
+  const dir = winQuote(context.root);
+  const color = tabColor(service, index);
+  const command = `new-tab --title ${winQuote(service.name)} --tabColor ${winQuote(color)} -d ${dir} cmd /k ${winQuote(managedServiceCommand(context, service, 'win'))}`;
 
   // `-w 0` reuses the current Windows Terminal window instead of
   // spawning a brand new one, so the services open as tabs in place.
@@ -189,21 +219,24 @@ function tabColor(service, index) {
   return service.color || TAB_COLORS[index % TAB_COLORS.length];
 }
 
-function openWindowsWindows(context, services) {
-  services.forEach((service) => {
-    const dir = winQuote(context.root);
-    const command = `start ${winQuote(service.name)} /D ${dir} cmd /k ${winQuote(managedServiceCommand(context, service, 'win'))}`;
+function openWindowsWindow(context, service) {
+  const dir = winQuote(context.root);
+  const command = `start ${winQuote(service.name)} /D ${dir} cmd /k ${winQuote(managedServiceCommand(context, service, 'win'))}`;
 
-    spawn(command, {
-      shell: true,
-      detached: true,
-      stdio: 'ignore'
-    }).unref();
-  });
+  spawn(command, {
+    shell: true,
+    detached: true,
+    stdio: 'ignore'
+  }).unref();
 }
 
-async function runDevHere(context, services) {
-  warning('Terminal tabs are unavailable. Running services in the current terminal.');
+async function runDevHere(context, plan, afterLaunch) {
+  if (context.config.launchMode === 'current') {
+    info('Running services in the current terminal.');
+  } else {
+    warning('Terminal tabs are unavailable. Running services in the current terminal.');
+  }
+
   line('Press Ctrl+C to stop all services.');
   line();
 
@@ -250,12 +283,25 @@ async function runDevHere(context, services) {
   process.once('SIGTERM', onSignal);
 
   try {
-    const results = await Promise.all(services.map((service) => {
+    const done = [];
+
+    await runLaunchPlan(plan, (service) => {
+      if (!service.dev) {
+        warning(`${service.name || service.dir} has no dev command and was skipped.`);
+        return;
+      }
+
       line(`${paint(`[${service.name}]`, 'cyan')} ${service.dev}`);
       const serviceProcess = startService(context, service, { mirror: true });
       running.push(serviceProcess);
-      return serviceProcess.done;
-    }));
+      done.push(serviceProcess.done);
+    });
+
+    if (afterLaunch) {
+      await afterLaunch();
+    }
+
+    const results = await Promise.all(done);
 
     const failed = results.find((code) => code !== 0);
 
@@ -269,22 +315,30 @@ async function runDevHere(context, services) {
 }
 
 async function runManagedService(context, args) {
-  const target = args[0];
-  const service = findService(context, target);
+  const parsed = parseManagedServiceArgs(args);
+  const profile = parsed.profile ? findProfile(context.config, parsed.profile) : null;
+  const runContext = profile ? contextWithProfileEnv(context, profile) : context;
+  const service = findConfiguredService(context.config.services || [], parsed.target);
 
   if (!service) {
-    warning(`Service not found: ${target || 'missing service name'}`);
+    warning(`Service not found: ${parsed.target || 'missing service name'}`);
     return;
   }
 
-  await startService(context, service, { mirror: true, terminalSession: process.env.TERM_PROGRAM || process.env.TERM || null }).done;
+  await startService(runContext, service, { mirror: true, terminalSession: process.env.TERM_PROGRAM || process.env.TERM || null }).done;
 }
 
-function findService(context, target) {
-  const normalized = String(target || '').toLowerCase();
-  return (context.config.services || []).find((service) => (
-    service.dir.toLowerCase() === normalized || service.name.toLowerCase() === normalized
-  ));
+function parseManagedServiceArgs(args = []) {
+  const profileIndex = args.indexOf('--profile');
+
+  if (profileIndex === -1) {
+    return { target: args[0], profile: null };
+  }
+
+  return {
+    target: args[0],
+    profile: args[profileIndex + 1] || null
+  };
 }
 
 function managedServiceCommand(context, service, platform = 'posix') {
@@ -296,6 +350,12 @@ function managedServiceCommand(context, service, platform = 'posix') {
     '__run-service',
     service.dir
   ];
+  const profile = context.config.activeProfile;
+
+  if (profile && profile.id) {
+    args.push('--profile', profile.id);
+  }
+
   const quote = platform === 'win' ? winQuote : shellQuote;
 
   return args.map(quote).join(' ');

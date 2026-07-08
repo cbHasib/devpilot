@@ -86,6 +86,9 @@ function header(config) {
     line(bannerRow(''));
     headerRow('project', style(config.projectName, 'white', 'bold'));
     headerRow('services', paint(String(count), 'white'));
+    if (config.activeProfile && config.activeProfile.name) {
+      headerRow('profile', paint(config.activeProfile.name, 'white'));
+    }
     headerRow('workspace', paint(workspaceLabel(config.workspace), 'white'));
     headerRow('package', paint(packageManagerLabel(config.packageManager), 'white'));
     headerRow('alias', paint(config.alias, 'white'));

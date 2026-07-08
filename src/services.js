@@ -5,7 +5,7 @@ const { detectPackageManagerInfo: detectPackageManagerInfoFromWorkspace } = requ
 const { scanWorkspace } = require('./workspace/scanner');
 
 function cleanService(service) {
-  return {
+  const clean = {
     dir: String(service.dir || '').trim(),
     name: String(service.name || '').trim(),
     dev: String(service.dev || '').trim(),
@@ -15,6 +15,19 @@ function cleanService(service) {
     framework: String(service.framework || '').trim(),
     port: normalizePort(service.port)
   };
+
+  const dependsOn = normalizeDependsOn(service.dependsOn);
+  const delay = normalizeDelay(service.delay);
+
+  if (dependsOn.length > 0) {
+    clean.dependsOn = dependsOn;
+  }
+
+  if (delay > 0) {
+    clean.delay = delay;
+  }
+
+  return clean;
 }
 
 function detectServices(root, packageManager) {
@@ -87,6 +100,23 @@ function isSupportedPackageManager(packageManager) {
 function normalizePort(port) {
   const value = Number(port);
   return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function normalizeDependsOn(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || '').trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    return [value.trim()];
+  }
+
+  return [];
+}
+
+function normalizeDelay(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.round(number) : 0;
 }
 
 module.exports = {

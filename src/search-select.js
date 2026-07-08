@@ -29,15 +29,28 @@ function searchableSelect({ message, options, visibleLimit }) {
     readline.emitKeypressEvents(input);
 
     const wasRaw = input.isRaw;
+    const wasPaused = typeof input.isPaused === 'function' ? input.isPaused() : false;
+    let cleaned = false;
+
     input.setRawMode(true);
     input.resume();
     output.write('\x1b[?25l');
 
     const cleanup = (value) => {
+      if (cleaned) {
+        return;
+      }
+
+      cleaned = true;
       clearPrompt(output, state.renderedLines);
       output.write('\x1b[?25h');
-      input.setRawMode(wasRaw);
       input.off('keypress', onKeypress);
+      input.setRawMode(Boolean(wasRaw));
+
+      if (wasPaused) {
+        input.pause();
+      }
+
       resolve(value);
     };
 
