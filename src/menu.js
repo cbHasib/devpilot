@@ -17,6 +17,8 @@ async function showMenu(context, runCommand) {
         { value: 'install', label: 'Install Dependencies', hint: 'install packages for all services' },
         { value: 'build', label: 'Build All Services', hint: 'run each service build script' },
         { value: 'lint', label: 'Lint All Services', hint: 'run each service lint script' },
+        { value: 'open', label: 'Open Directory', hint: 'open the project or a service in your file manager' },
+        { value: 'code', label: 'Open in Editor', hint: 'open the project or a service in your editor' },
         { value: 'clean', label: 'Clean Project', hint: 'remove node_modules, dist, and caches' },
         { value: 'doctor', label: 'Doctor', hint: 'check local tooling and configuration' },
         { value: 'update', label: 'Update Project', hint: 'pull latest changes and reinstall' },

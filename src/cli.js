@@ -16,6 +16,7 @@ const { cleanProject } = require('./commands/clean');
 const { doctor } = require('./commands/doctor');
 const { updateProject } = require('./commands/update');
 const { showAbout } = require('./commands/about');
+const { openDirectory, openInEditor } = require('./commands/open');
 
 function parseArgs(argv) {
   const args = [];
@@ -82,6 +83,8 @@ function showHelp() {
     ['install', 'Install dependencies for all services'],
     ['build', 'Build all services'],
     ['lint', 'Lint all services'],
+    ['open', 'Open the project or a service in your file manager'],
+    ['code', 'Open the project or a service in your editor'],
     ['clean', 'Remove generated folders'],
     ['doctor', 'Check local tooling'],
     ['update', 'Pull latest changes and install dependencies'],
@@ -117,6 +120,12 @@ async function runCommand(command, context) {
       break;
     case 'lint':
       await runForServices(context, 'lint', 'Lint All Services');
+      break;
+    case 'open':
+      await openDirectory(context);
+      break;
+    case 'code':
+      await openInEditor(context);
       break;
     case 'clean':
       cleanProject(context);

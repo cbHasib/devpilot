@@ -10,6 +10,9 @@ function doctor(context) {
   printVersion(packageManagerLabel(context.config.packageManager), context.config.packageManager, ['--version']);
   printVersion('Git', 'git', ['--version']);
 
+  const editor = context.config.editor || 'code';
+  printAvailable(`Editor (${editor})`, editor);
+
   section('Project');
   line(`    ${paint('root', 'dim')}         ${context.root}`);
   line(`    ${paint('services', 'dim')}     ${context.config.services.length}`);

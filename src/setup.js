@@ -66,6 +66,13 @@ async function setupProject() {
     initialValue: 'tabs'
   }));
 
+  const editor = await answer(clack.text({
+    message: 'Editor command',
+    placeholder: 'code',
+    defaultValue: 'code',
+    initialValue: 'code'
+  }));
+
   const detectedServices = detectServices(root, packageManager);
   let services = [];
 
@@ -126,6 +133,7 @@ async function setupProject() {
     alias,
     packageManager,
     launchMode,
+    editor,
     services,
     createdAt: new Date().toISOString()
   };
