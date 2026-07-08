@@ -107,6 +107,19 @@ async function setupProject() {
     services.push(await promptService(packageManager));
   }
 
+  const assignColors = await answer(clack.confirm({
+    message: 'Choose a terminal tab color for each service? (used by Windows Terminal)',
+    initialValue: false
+  }));
+
+  if (assignColors) {
+    for (let index = 0; index < services.length; index += 1) {
+      const label = services[index].name || services[index].dir;
+      const color = await promptColor(services[index].color, label);
+      services[index] = { ...services[index], color };
+    }
+  }
+
   const config = {
     schemaVersion: 1,
     projectName,
@@ -153,9 +166,8 @@ async function editService(service) {
   const dev = await answer(clack.text({ message: 'Dev command', initialValue: service.dev, placeholder: 'leave empty to skip' }));
   const build = await answer(clack.text({ message: 'Build command', initialValue: service.build, placeholder: 'leave empty to skip' }));
   const lint = await answer(clack.text({ message: 'Lint command', initialValue: service.lint, placeholder: 'leave empty to skip' }));
-  const color = await promptColor(service.color);
 
-  return cleanService({ dir, name, dev, build, lint, color });
+  return cleanService({ dir, name, dev, build, lint, color: service.color });
 }
 
 async function promptService(packageManager) {
@@ -166,14 +178,13 @@ async function promptService(packageManager) {
   const dev = await answer(clack.text({ message: 'Dev command', initialValue: scriptCommand(packageManager, 'dev'), placeholder: 'leave empty to skip' }));
   const build = await answer(clack.text({ message: 'Build command', initialValue: scriptCommand(packageManager, 'build'), placeholder: 'leave empty to skip' }));
   const lint = await answer(clack.text({ message: 'Lint command', initialValue: scriptCommand(packageManager, 'lint'), placeholder: 'leave empty to skip' }));
-  const color = await promptColor('');
 
-  return cleanService({ dir, name, dev, build, lint, color });
+  return cleanService({ dir, name, dev, build, lint });
 }
 
-async function promptColor(current) {
+async function promptColor(current, label) {
   return answer(clack.select({
-    message: 'Terminal tab color',
+    message: label ? `Tab color for ${label}` : 'Terminal tab color',
     options: [
       { value: '', label: 'Auto', hint: 'assign a distinct color by position' },
       { value: '#2563eb', label: 'Blue' },
