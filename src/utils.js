@@ -60,6 +60,10 @@ function appleQuote(value) {
   return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
+function winQuote(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
 function commandExists(command) {
   const lookup = process.platform === 'win32' ? 'where' : 'which';
   const result = spawnSync(lookup, [command], { stdio: 'ignore' });
@@ -105,6 +109,7 @@ module.exports = {
   defaultAlias,
   shellQuote,
   appleQuote,
+  winQuote,
   commandExists,
   commandOutput,
   packageManagerLabel,

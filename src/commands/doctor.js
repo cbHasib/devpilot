@@ -21,6 +21,12 @@ function doctor(context) {
     printAvailable('Apple Terminal automation', 'osascript');
   } else if (process.platform === 'linux' && !isWsl()) {
     printAvailable('GNOME Terminal tabs', 'gnome-terminal');
+  } else if (process.platform === 'win32') {
+    if (commandExists('wt')) {
+      success('Windows Terminal tabs: available');
+    } else {
+      warning('Windows Terminal not installed — services will open in separate windows.');
+    }
   } else {
     warning('Dev command will run services in the current terminal.');
   }

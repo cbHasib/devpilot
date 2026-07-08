@@ -13,7 +13,7 @@ const {
   paint,
   style
 } = require('../ui');
-const { commandExists, isWsl, shellQuote, appleQuote, servicePath } = require('../utils');
+const { commandExists, isWsl, shellQuote, appleQuote, winQuote, servicePath } = require('../utils');
 
 async function startDevelopment(context) {
   const { config } = context;
@@ -28,41 +28,55 @@ async function startDevelopment(context) {
 
   section('Start Development');
 
-  const useMacTabs = config.launchMode !== 'current'
+  const wantTabs = config.launchMode !== 'current';
+  const useMacTabs = wantTabs
     && process.platform === 'darwin'
     && commandExists('osascript');
-  const useGnomeTabs = config.launchMode !== 'current'
+  const useGnomeTabs = wantTabs
     && process.platform === 'linux'
     && !isWsl()
     && commandExists('gnome-terminal');
+  const useWindowsTabs = wantTabs
+    && process.platform === 'win32'
+    && commandExists('wt');
+  const useWindowsWindows = wantTabs
+    && process.platform === 'win32'
+    && !useWindowsTabs;
 
-  if (!useMacTabs && !useGnomeTabs) {
+  if (!useMacTabs && !useGnomeTabs && !useWindowsTabs && !useWindowsWindows) {
     await runDevHere(context, services);
     return;
   }
 
   line();
 
+  let placement = 'in separate tabs';
+
   if (useMacTabs) {
     openMacTabs(context, services);
-  } else {
+  } else if (useGnomeTabs) {
     openGnomeTabs(context, services);
+  } else if (useWindowsTabs) {
+    openWindowsTabs(context, services);
+  } else {
+    openWindowsWindows(context, services);
+    placement = 'in separate windows';
   }
 
   services.forEach((service) => {
     success(`${style(service.name, 'white', 'bold')}  ${paint('→', 'gray')}  ${paint(service.dev, 'dim')}`);
   });
 
-  devRunningBanner(services.length);
+  devRunningBanner(services.length, placement);
 }
 
-function devRunningBanner(count) {
+function devRunningBanner(count, placement) {
   const label = count === 1 ? 'service is' : 'services are';
   const message = `All ${count} ${label} now running`;
 
   line();
   line(rule('╭', '╮'));
-  line(bannerRow(`${style('✓', 'green')} ${style(message, 'green', 'bold')}`, paint('in separate tabs', 'dim')));
+  line(bannerRow(`${style('✓', 'green')} ${style(message, 'green', 'bold')}`, paint(placement, 'dim')));
   line(rule('╰', '╯'));
   line();
 }
@@ -96,6 +110,34 @@ function openGnomeTabs(context, services) {
       '-lc',
       command
     ], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref();
+  });
+}
+
+function openWindowsTabs(context, services) {
+  const command = services
+    .map((service) => {
+      const dir = winQuote(servicePath(context, service));
+      return `new-tab --title ${winQuote(service.name)} -d ${dir} cmd /k ${winQuote(service.dev)}`;
+    })
+    .join(' ; ');
+
+  spawn(`wt ${command}`, {
+    shell: true,
+    detached: true,
+    stdio: 'ignore'
+  }).unref();
+}
+
+function openWindowsWindows(context, services) {
+  services.forEach((service) => {
+    const dir = winQuote(servicePath(context, service));
+    const command = `start ${winQuote(service.name)} /D ${dir} cmd /k ${winQuote(service.dev)}`;
+
+    spawn(command, {
+      shell: true,
       detached: true,
       stdio: 'ignore'
     }).unref();
