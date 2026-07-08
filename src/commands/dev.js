@@ -218,29 +218,38 @@ async function runDevHere(context, services) {
     });
   };
 
-  process.once('SIGINT', () => {
+  const onSignal = () => {
     stopChildren();
     process.exit(130);
-  });
+  };
 
-  const results = await Promise.all(services.map((service) => {
-    line(`${paint(`[${service.name}]`, 'cyan')} ${service.dev}`);
-    const child = spawn(service.dev, {
-      cwd: servicePath(context, service),
-      shell: true,
-      stdio: 'inherit'
-    });
-    children.push(child);
+  process.once('SIGINT', onSignal);
+  process.once('SIGTERM', onSignal);
 
-    return new Promise((resolve) => {
-      child.on('close', (code) => resolve(code || 0));
-    });
-  }));
+  try {
+    const results = await Promise.all(services.map((service) => {
+      line(`${paint(`[${service.name}]`, 'cyan')} ${service.dev}`);
+      const child = spawn(service.dev, {
+        cwd: servicePath(context, service),
+        shell: true,
+        stdio: 'inherit'
+      });
+      children.push(child);
 
-  const failed = results.find((code) => code !== 0);
+      return new Promise((resolve) => {
+        child.on('error', () => resolve(1));
+        child.on('close', (code) => resolve(code || 0));
+      });
+    }));
 
-  if (failed) {
-    process.exitCode = failed;
+    const failed = results.find((code) => code !== 0);
+
+    if (failed) {
+      process.exitCode = failed;
+    }
+  } finally {
+    process.removeListener('SIGINT', onSignal);
+    process.removeListener('SIGTERM', onSignal);
   }
 }
 

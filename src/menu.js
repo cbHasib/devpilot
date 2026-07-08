@@ -4,7 +4,6 @@ const clack = require('@clack/prompts');
 
 const { clearScreen, header, line, paint, style, padVisible, waitForEnter } = require('./ui');
 const { error: logError } = require('./logger');
-const { selectOption } = require('./search-select');
 
 async function showMenu(context, runCommand) {
   while (true) {
@@ -13,7 +12,7 @@ async function showMenu(context, runCommand) {
     printServiceOverview(context.config);
     line();
 
-    const action = await selectOption({
+    const action = await clack.select({
       message: 'What would you like to do?',
       options: [
         { value: 'dev', label: 'Start Development', hint: 'launch every service in its own tab' },
@@ -32,7 +31,7 @@ async function showMenu(context, runCommand) {
       ]
     });
 
-    if (clack.isCancel(action) || action === null || action === 'exit') {
+    if (clack.isCancel(action) || action === 'exit') {
       farewell();
       return;
     }
