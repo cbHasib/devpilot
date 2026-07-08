@@ -76,7 +76,7 @@ const commands = [
   },
   {
     name: 'clean',
-    description: 'Remove generated folders',
+    description: 'Remove generated folders and logs',
     profileMode: 'strict',
     handler: cleanProject
   },
@@ -100,7 +100,7 @@ const commands = [
   },
   {
     name: 'logs',
-    description: 'Show logs for DevPilot-managed services',
+    description: 'Show or clear DevPilot-managed service logs',
     profileMode: 'target',
     handler: showLogs
   },

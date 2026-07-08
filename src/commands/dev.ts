@@ -17,6 +17,7 @@ const { info, success, warning } = require('../logger');
 const { commandExists, isWsl, shellQuote, appleQuote, winQuote } = require('../utils');
 const { TAB_COLORS } = require('../constants');
 const { serviceExecutionIssue, serviceExecutionWarnings } = require('../validation');
+const { clearServiceLog } = require('../runtime/logs');
 const { startService } = require('../runtime/processManager');
 const { updateEntry } = require('../runtime/registry');
 const { confirmStopServices } = require('../runtime/signals');
@@ -57,6 +58,7 @@ async function startDevelopment(context) {
   const plan = createLaunchPlan(context, services);
   plan.warnings.forEach((message) => warning(message));
   printLaunchPlan(context, plan.services);
+  clearLaunchLogs(context, plan.services);
 
   await runHooks(context, 'beforeDev');
 
@@ -150,6 +152,16 @@ function printLaunchPlan(context, services) {
     const suffix = delay > 0 ? paint(` delay ${delay}ms`, 'dim') : '';
     line(`      ${style(service.name || service.dir, 'white', 'bold')} ${paint(service.dir, 'dim')}${suffix}`);
   });
+}
+
+function clearLaunchLogs(context, services) {
+  const cleared = services
+    .map((service) => clearServiceLog(context, service))
+    .reduce((total, count) => total + count, 0);
+
+  if (cleared > 0) {
+    info(`Cleared previous logs for ${cleared} ${cleared === 1 ? 'service' : 'services'}.`);
+  }
 }
 
 function openMacTab(context, service) {

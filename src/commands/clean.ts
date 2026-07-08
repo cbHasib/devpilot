@@ -5,6 +5,7 @@ const path = require('path');
 
 const { header, section, completionBanner } = require('../ui');
 const { info, success, warning } = require('../logger');
+const { clearWorkspaceLogs } = require('../runtime/logs');
 const { servicePath } = require('../utils');
 
 function cleanProject(context) {
@@ -36,6 +37,15 @@ function cleanProject(context) {
       info('Nothing to remove.');
     }
   });
+
+  section('DevPilot Logs');
+  const cleared = clearWorkspaceLogs(context);
+
+  if (cleared === 0) {
+    info('No log files to clear.');
+  } else {
+    success(`Cleared ${cleared} log ${cleared === 1 ? 'file' : 'files'}.`);
+  }
 
   completionBanner('Clean complete');
 }

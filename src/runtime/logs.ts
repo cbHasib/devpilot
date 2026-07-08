@@ -1,9 +1,10 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
 
 const { line, paint } = require('../ui');
-const { entryForService, logPath } = require('./registry');
+const { ensureRuntime, entryForService, logsDir, logPath } = require('./registry');
 
 function appendLog(stream, chunk) {
   if (!stream || !chunk) {
@@ -40,6 +41,45 @@ async function followWorkspaceLogs(context, services) {
   }
 
   await Promise.all(targets.map((target) => followFile(target.file, target.service.name)));
+}
+
+function clearServiceLog(context, service) {
+  const entry = entryForService(context.root, service);
+  const file = entry && entry.logPath ? entry.logPath : logPath(context.root, service);
+
+  return truncateLogFile(file);
+}
+
+function clearWorkspaceLogs(context) {
+  ensureRuntime(context.root);
+
+  const dir = logsDir(context.root);
+
+  if (!fs.existsSync(dir)) {
+    return 0;
+  }
+
+  return fs.readdirSync(dir)
+    .filter((name) => name.endsWith('.log'))
+    .map((name) => truncateLogFile(path.join(dir, name)))
+    .reduce((total, count) => total + count, 0);
+}
+
+function truncateLogFile(file) {
+  if (!file || !fs.existsSync(file)) {
+    return 0;
+  }
+
+  const stat = fs.statSync(file);
+
+  if (!stat.isFile()) {
+    return 0;
+  }
+
+  // Truncate instead of deleting so running services keep writing to the same
+  // path and `devpilot logs` can continue following new output.
+  fs.truncateSync(file, 0);
+  return 1;
 }
 
 function followFile(file, label = '') {
@@ -95,6 +135,8 @@ function printContent(content, label) {
 
 module.exports = {
   appendLog,
+  clearServiceLog,
+  clearWorkspaceLogs,
   followLogs,
   followWorkspaceLogs
 };

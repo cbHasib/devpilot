@@ -161,6 +161,7 @@ module.exports = {
   entries,
   ensureRuntime,
   entryForService,
+  logsDir,
   logPath,
   processAlive,
   readRegistry,

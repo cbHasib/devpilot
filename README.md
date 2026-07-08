@@ -78,9 +78,9 @@ From there they can:
 * Build services
 * Run lint checks
 * See running services
-* Follow service logs
+* Follow and clear service logs
 * Restart or stop services
-* Clean generated files
+* Clean generated files and logs
 * Verify project health
 * Update repositories
 
@@ -240,9 +240,9 @@ devpilot doctor
 | `install` | Install dependencies                                                         |
 | `build`   | Build every configured service                                               |
 | `lint`    | Run lint commands                                                            |
-| `clean`   | Remove generated folders like `node_modules`, `.next`, `dist` and `coverage` |
+| `clean`   | Remove generated folders and clear DevPilot logs                             |
 | `status`  | Show DevPilot-managed service state and uptime                               |
-| `logs`    | Follow logs for all services or a specific service                           |
+| `logs`    | Follow or clear logs for all services or a specific service                  |
 | `stop`    | Stop all DevPilot-managed services or one named service                      |
 | `restart` | Restart all runnable services or one named service                           |
 | `profiles` | List workspace profiles                                                     |
@@ -359,6 +359,15 @@ Follow logs without stopping services.
 ```bash
 my-services logs
 my-services logs backend
+```
+
+Each `dev` launch clears saved logs for the services it is about to start, so the next log view begins with the current run.
+
+Clear saved logs.
+
+```bash
+my-services logs clear
+my-services logs clear backend
 ```
 
 Restart or stop services.
