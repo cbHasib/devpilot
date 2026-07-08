@@ -413,7 +413,7 @@ When an update is available, the interactive menu shows a compact update panel:
 
 ```text
 ▲ DevPilot update available            v0.6.0 -> v0.6.1
-Choose Update DevPilot or run devpilot upgrade
+Press U to update or run devpilot upgrade
 ```
 
 You can also update directly:

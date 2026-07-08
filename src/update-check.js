@@ -89,7 +89,7 @@ function printMenuUpdateBanner(update) {
     `${style('▲', 'yellow')} ${style('DevPilot update available', 'yellow', 'bold')}`,
     `${paint(`v${notice.current}`, 'dim')} ${paint('→', 'gray')} ${style(`v${notice.latest}`, 'green', 'bold')}`
   ));
-  line(bannerRow(`${paint('Choose', 'dim')} ${style('Update DevPilot', 'cyan', 'bold')} ${paint('or run', 'dim')} ${style(notice.command, 'cyan', 'bold')}`));
+  line(bannerRow(`${paint('Press', 'dim')} ${style('U', 'cyan', 'bold')} ${paint('to update or run', 'dim')} ${style(notice.command, 'cyan', 'bold')}`));
   line(rule('┗', '┛'));
 }
 

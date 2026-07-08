@@ -28,10 +28,7 @@ async function showMenu(context, runCommand) {
     printMenuUpdateBanner(update);
     line();
 
-    const action = await clack.select({
-      message: 'What would you like to do?',
-      options: menuOptions(update)
-    });
+    const action = await selectMenuAction(update);
 
     if (clack.isCancel(action) || action === null || action === 'exit') {
       farewell();
@@ -85,10 +82,51 @@ function menuOptions(update) {
     {
       value: 'upgrade',
       label: 'Update DevPilot',
-      hint: `v${update.current} -> v${update.latest}`
+      hint: `press U · v${update.current} -> v${update.latest}`
     },
     ...options
   ];
+}
+
+async function selectMenuAction(update) {
+  const options = menuOptions(update);
+
+  if (!update || !process.stdin.isTTY) {
+    return clack.select({
+      message: 'What would you like to do?',
+      options
+    });
+  }
+
+  const controller = new AbortController();
+  let shortcutAction = null;
+
+  const onKeypress = (chunk, key = {}) => {
+    if (shortcutAction || key.ctrl || key.meta) {
+      return;
+    }
+
+    const value = key.name && key.name.length === 1 ? key.name : chunk;
+
+    if (String(value || '').toLowerCase() === 'u') {
+      shortcutAction = 'upgrade';
+      controller.abort();
+    }
+  };
+
+  process.stdin.on('keypress', onKeypress);
+
+  try {
+    const action = await clack.select({
+      message: 'What would you like to do?',
+      options,
+      signal: controller.signal
+    });
+
+    return shortcutAction || action;
+  } finally {
+    process.stdin.off('keypress', onKeypress);
+  }
 }
 
 async function chooseProfileContext(context) {
