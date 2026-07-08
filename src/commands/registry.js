@@ -10,6 +10,8 @@ const { doctor } = require('./doctor');
 const { updateProject } = require('./update');
 const { showAbout } = require('./about');
 const { openDirectory, openInEditor } = require('./open');
+const { showStatus } = require('./status');
+const { showInfo } = require('./info');
 
 const commands = [
   {
@@ -59,6 +61,16 @@ const commands = [
     name: 'clean',
     description: 'Remove generated folders',
     handler: cleanProject
+  },
+  {
+    name: 'status',
+    description: 'Show workspace service status',
+    handler: showStatus
+  },
+  {
+    name: 'info',
+    description: 'Show workspace intelligence summary',
+    handler: showInfo
   },
   {
     name: 'doctor',

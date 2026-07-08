@@ -1,13 +1,15 @@
 'use strict';
 
-const { header, section, line, paint, completionBanner, countLabel } = require('../ui');
+const { header, section, line, paint, completionBanner, countLabel, progressBar } = require('../ui');
 const { info, warning } = require('../logger');
 const { runShell, servicePath } = require('../utils');
 const { serviceExecutionIssue, serviceExecutionWarnings } = require('../validation');
+const { createTimer } = require('../workspace/summary');
 
 async function runForServices(context, field, title) {
   const services = context.config.services.filter((service) => service[field]);
   header(context.config);
+  const timer = createTimer();
 
   if (services.length === 0) {
     warning(`No services have a ${field} command configured.`);
@@ -16,7 +18,10 @@ async function runForServices(context, field, title) {
 
   let completed = 0;
 
-  for (const service of services) {
+  for (let index = 0; index < services.length; index += 1) {
+    const service = services[index];
+    progressBar(index + 1, services.length, service.name);
+
     if (await runOne(context, service, service[field], title, field)) {
       completed += 1;
     }
@@ -29,18 +34,23 @@ async function runForServices(context, field, title) {
   }
 
   completionBanner(`${title} finished for ${countLabel(completed)}`);
+  info(timer.label());
 }
 
 async function runSequential(context, services, command, title) {
+  const timer = createTimer();
   let completed = 0;
 
-  for (const service of services) {
+  for (let index = 0; index < services.length; index += 1) {
+    const service = services[index];
+    progressBar(index + 1, services.length, service.name);
+
     if (await runOne(context, service, command, title, 'install')) {
       completed += 1;
     }
   }
 
-  return completed;
+  return { completed, elapsed: timer.label() };
 }
 
 async function runOne(context, service, command, title, field) {

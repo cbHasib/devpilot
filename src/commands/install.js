@@ -25,18 +25,19 @@ async function installServices(context, options = {}) {
     info('Falling back to yarn install. Run devpilot setup to choose a supported package manager.');
   }
 
-  const completed = await runSequential(context, services, command, 'Install Dependencies');
+  const result = await runSequential(context, services, command, 'Install Dependencies');
 
-  if (completed === 0) {
+  if (result.completed === 0) {
     warning('No runnable services found.');
     return 0;
   }
 
   if (options.showCompletion !== false) {
-    completionBanner(`Dependencies installed for ${countLabel(completed)}`);
+    completionBanner(`Dependencies installed for ${countLabel(result.completed)}`);
+    info(result.elapsed);
   }
 
-  return completed;
+  return result.completed;
 }
 
 module.exports = { installAll, installServices };

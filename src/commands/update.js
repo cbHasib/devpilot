@@ -4,8 +4,10 @@ const { header, section, completionBanner } = require('../ui');
 const { info, success, warning } = require('../logger');
 const { runShell, isGitRepo } = require('../utils');
 const { installServices } = require('./install');
+const { createTimer } = require('../workspace/summary');
 
 async function updateProject(context) {
+  const timer = createTimer();
   header(context.config);
 
   if (isGitRepo(context.root)) {
@@ -22,6 +24,7 @@ async function updateProject(context) {
   info('Installing dependencies...');
   await installServices(context, { showCompletion: false });
   completionBanner('Completed.');
+  info(timer.label());
 }
 
 module.exports = { updateProject };

@@ -47,7 +47,19 @@ function titleCase(value) {
     .replace(/[-_]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => {
+      const lower = word.toLowerCase();
+      const acronyms = new Set(['api', 'cli', 'db', 'ui', 'url', 'ux']);
+
+      if (acronyms.has(lower)) {
+        return lower.toUpperCase();
+      }
+
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(' ');
 }
 
 function defaultAlias(value) {

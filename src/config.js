@@ -7,6 +7,7 @@ const pkg = require('../package.json');
 const { CONFIG_FILE, STATE_DIR } = require('./constants');
 const { defaultAlias, readJson, titleCase } = require('./utils');
 const { cleanService, detectPackageManager } = require('./services');
+const { scanWorkspace } = require('./workspace/scanner');
 
 function loadProjectContext(startDir) {
   const resolved = path.resolve(startDir);
@@ -69,6 +70,10 @@ function normalizeConfig(config, root, configError = null) {
   const source = config && typeof config === 'object' ? config : {};
   const projectName = stringValue(source.projectName) || titleCase(path.basename(root));
   const packageManager = stringValue(source.packageManager) || detectPackageManager(root);
+  const services = enrichServices(
+    Array.isArray(source.services) ? source.services.map(cleanService) : [],
+    root
+  );
 
   return {
     ...source,
@@ -78,14 +83,32 @@ function normalizeConfig(config, root, configError = null) {
     packageManager,
     launchMode: source.launchMode === 'current' ? 'current' : 'tabs',
     editor: stringValue(source.editor) || 'code',
-    services: Array.isArray(source.services) ? source.services.map(cleanService) : [],
+    services,
     createdAt: stringValue(source.createdAt),
     lastUpdated: stringValue(source.lastUpdated),
     devpilotVersion: stringValue(source.devpilotVersion) || pkg.version,
-    workspace: objectValue(source.workspace),
+    workspace: normalizeWorkspace(source.workspace),
     features: objectValue(source.features),
     _configError: configError ? configError.message : null
   };
+}
+
+function enrichServices(services, root) {
+  const detected = new Map(scanWorkspace(root).services.map((service) => [service.dir, service]));
+
+  return services.map((service) => {
+    const match = detected.get(service.dir);
+
+    if (!match) {
+      return service;
+    }
+
+    return {
+      ...service,
+      framework: service.framework || match.framework || '',
+      port: service.port || match.port || null
+    };
+  });
 }
 
 function stringValue(value) {
@@ -94,6 +117,17 @@ function stringValue(value) {
 
 function objectValue(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function normalizeWorkspace(value) {
+  const source = objectValue(value);
+
+  return {
+    type: stringValue(source.type),
+    id: stringValue(source.id),
+    source: stringValue(source.source),
+    monorepo: Boolean(source.monorepo)
+  };
 }
 
 function ensureGitignore(root) {

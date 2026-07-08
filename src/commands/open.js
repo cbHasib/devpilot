@@ -69,7 +69,7 @@ async function chooseTarget(context, message) {
       ...services.map((service, index) => ({
         value: index,
         label: service.name,
-        hint: service.dir
+        hint: service.framework ? `${service.dir} · ${service.framework}` : service.dir
       }))
     ]
   });

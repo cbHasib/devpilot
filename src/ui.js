@@ -86,6 +86,7 @@ function header(config) {
     line(bannerRow(''));
     headerRow('project', style(config.projectName, 'white', 'bold'));
     headerRow('services', paint(String(count), 'white'));
+    headerRow('workspace', paint(workspaceLabel(config.workspace), 'white'));
     headerRow('package', paint(packageManagerLabel(config.packageManager), 'white'));
     headerRow('alias', paint(config.alias, 'white'));
     headerRow('version', paint(`v${pkg.version}`, 'white'));
@@ -125,6 +126,17 @@ function completionBanner(message) {
   line(`  ${paint('✓', 'green')} ${style(message, 'green', 'bold')}`);
 }
 
+function progressBar(current, total, label) {
+  const width = 18;
+  const safeTotal = Math.max(total, 1);
+  const filled = Math.max(0, Math.min(width, Math.round((current / safeTotal) * width)));
+  const empty = width - filled;
+  const bar = `${'█'.repeat(filled)}${'░'.repeat(empty)}`;
+  const suffix = label ? ` ${paint(label, 'dim')}` : '';
+
+  line(`  ${paint(bar, 'accent')} ${paint(`${current}/${safeTotal}`, 'dim')}${suffix}`);
+}
+
 function countLabel(count) {
   return `${count} ${count === 1 ? 'service' : 'services'}`;
 }
@@ -132,6 +144,14 @@ function countLabel(count) {
 function packageManagerLabel(packageManager) {
   const value = String(packageManager || '').trim();
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : 'Unknown';
+}
+
+function workspaceLabel(workspace) {
+  if (!workspace || !workspace.type) {
+    return 'Unknown';
+  }
+
+  return workspace.type;
 }
 
 async function waitForEnter(message) {
@@ -160,6 +180,7 @@ module.exports = {
   fail,
   info,
   completionBanner,
+  progressBar,
   countLabel,
   waitForEnter
 };

@@ -11,8 +11,11 @@ const {
 } = require('../utils');
 const { aliasStatus } = require('../alias');
 const { validateConfig } = require('../validation');
+const { detectWorkspace } = require('../workspace/detector');
+const { workspaceLabel } = require('../workspace/summary');
 
 function doctor(context) {
+  const detection = detectWorkspace(context.root);
   header(context.config);
 
   section('Environment');
@@ -29,6 +32,7 @@ function doctor(context) {
   success(`${context.config.services.length} services`);
   printAlias(context);
   line(`    ${paint('root', 'dim')}         ${context.root}`);
+  line(`    ${paint('workspace', 'dim')}    ${workspaceLabel(context.config.workspace.type ? context.config.workspace : detection.workspace)}`);
   line(`    ${paint('launch mode', 'dim')}  ${context.config.launchMode}`);
 
   const warnings = validateConfig(context, { includeMissingCommands: true });

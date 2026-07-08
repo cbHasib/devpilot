@@ -12,9 +12,9 @@ const {
   titleCase,
   defaultAlias,
   packageManagerLabel,
-  isGitRepo,
   detectLaunchMode,
-  detectTerminal
+  detectTerminal,
+  commandExists
 } = require('./utils');
 const { writeConfig, ensureGitignore } = require('./config');
 const {
@@ -25,6 +25,8 @@ const {
 } = require('./services');
 const { createGlobalAlias } = require('./alias');
 const { answer, requiredField } = require('./prompts');
+const { detectWorkspace } = require('./workspace/detector');
+const { workspaceLabel } = require('./workspace/summary');
 
 async function setupProject() {
   const root = process.cwd();
@@ -34,7 +36,8 @@ async function setupProject() {
   line();
 
   clack.intro(`Setting up DevPilot in ${paint(root, 'cyan')}`);
-  printSetupDetections(root);
+  const detection = detectWorkspace(root);
+  printSetupDetections(detection);
 
   const defaultName = titleCase(path.basename(root));
   const projectName = await answer(clack.text({
@@ -61,50 +64,25 @@ async function setupProject() {
     }
   }));
 
-  const packageManager = await choosePackageManager(root);
-  const launchMode = await chooseLaunchMode();
-
-  const editor = await answer(clack.text({
-    message: 'Editor command',
-    placeholder: 'code',
-    defaultValue: 'code',
-    initialValue: 'code'
-  }));
+  const packageManager = await choosePackageManager(root, detection);
+  const launchMode = chooseLaunchMode();
+  const editor = await chooseEditor();
 
   const detectedServices = detectServices(root, packageManager);
-  let services = [];
+  let services = detectedServices;
 
   if (detectedServices.length > 0) {
-    const chosen = await answer(clack.multiselect({
-      message: 'Select the services DevPilot should manage',
-      options: detectedServices.map((service, index) => ({
-        value: index,
-        label: service.dir,
-        hint: service.name
-      })),
-      initialValues: detectedServices.map((service, index) => index),
-      required: false
-    }));
-
-    services = chosen
-      .sort((a, b) => a - b)
-      .map((index) => detectedServices[index]);
+    success('Workspace imported.');
   }
 
   if (services.length > 0) {
     const review = await answer(clack.confirm({
-      message: 'Edit the detected commands for each service?',
+      message: 'Review detected services?',
       initialValue: false
     }));
 
     if (review) {
-      const edited = [];
-
-      for (const service of services) {
-        edited.push(await editService(service));
-      }
-
-      services = edited;
+      services = await reviewDetectedServices(detectedServices);
     }
   }
 
@@ -136,7 +114,7 @@ async function setupProject() {
     createdAt: new Date().toISOString(),
     lastUpdated: '',
     devpilotVersion: pkg.version,
-    workspace: {},
+    workspace: detection.workspace,
     features: {}
   };
 
@@ -162,30 +140,35 @@ async function setupProject() {
   clack.outro(`Try ${paint(`${alias} dev`, 'cyan')} or ${paint('devpilot', 'cyan')}.`);
 }
 
-function printSetupDetections(root) {
+function printSetupDetections(detection) {
   const terminal = detectTerminal();
 
-  if (isGitRepo(root)) {
+  if (detection.git.initialized) {
     success('Detected Git repository.');
   } else {
     info('No Git repository detected. The update command will skip git pull.');
   }
 
+  if (detection.workspace.source) {
+    success(`${workspaceLabel(detection.workspace)} detected.`);
+  }
+
+  if (detection.services.length > 0) {
+    success(`${detection.services.length} services found.`);
+  }
+
+  if (detection.packageManager.detected) {
+    success(`Package manager: ${packageManagerLabel(detection.packageManager.value)}.`);
+  }
+
   info(`Detected terminal: ${terminal.name}.`);
 }
 
-async function choosePackageManager(root) {
-  const detected = detectPackageManagerInfo(root);
+async function choosePackageManager(root, detection) {
+  const detected = detection.packageManager || detectPackageManagerInfo(root);
 
   if (detected.detected) {
-    const useDetected = await answer(clack.confirm({
-      message: `Detected ${packageManagerLabel(detected.value)} from ${detected.source}. Use detected package manager?`,
-      initialValue: true
-    }));
-
-    if (useDetected) {
-      return detected.value;
-    }
+    return detected.value;
   }
 
   return answer(clack.select({
@@ -200,40 +183,34 @@ async function choosePackageManager(root) {
   }));
 }
 
-async function chooseLaunchMode() {
+function chooseLaunchMode() {
   const detected = detectLaunchMode();
   const label = detected === 'tabs' ? 'terminal tabs' : 'current terminal';
-  const useDetected = await answer(clack.confirm({
-    message: `Detected ${label}. Use detected launch mode?`,
-    initialValue: true
-  }));
+  success(`Launch mode: ${label}.`);
+  return detected;
+}
 
-  if (useDetected) {
-    return detected;
+async function chooseEditor() {
+  if (commandExists('code')) {
+    success('Editor command: code.');
+    return 'code';
   }
 
-  return answer(clack.select({
-    message: 'Development launch mode',
-    options: [
-      { value: 'tabs', label: 'Terminal tabs', hint: 'open each service in its own tab' },
-      { value: 'current', label: 'Current terminal', hint: 'run every service in this terminal' }
-    ],
-    initialValue: detected
+  return answer(clack.text({
+    message: 'Editor command',
+    placeholder: 'code',
+    defaultValue: 'code',
+    initialValue: 'code'
   }));
 }
 
 function printWorkspaceSummary(config, aliasPath) {
-  const commands = [
-    config.alias,
-    `${config.alias} dev`,
-    `${config.alias} build`
-  ].join('\n');
   const summary = [
     'Project',
     config.projectName,
     '',
-    'Alias',
-    config.alias,
+    'Workspace',
+    workspaceLabel(config.workspace),
     '',
     'Package Manager',
     packageManagerLabel(config.packageManager),
@@ -241,8 +218,11 @@ function printWorkspaceSummary(config, aliasPath) {
     'Services',
     String(config.services.length),
     '',
+    'Alias',
+    config.alias,
+    '',
     'Commands',
-    commands,
+    [config.alias, `${config.alias} dev`, `${config.alias} status`].join('\n'),
     '',
     `Wrote ${CONFIG_FILE}`,
     `Updated .gitignore with ${CONFIG_FILE} and ${STATE_DIR}/`,
@@ -250,6 +230,38 @@ function printWorkspaceSummary(config, aliasPath) {
   ].filter((value) => value !== null).join('\n');
 
   clack.note(summary, 'Workspace Ready');
+}
+
+async function reviewDetectedServices(detectedServices) {
+  const chosen = await answer(clack.multiselect({
+    message: 'Select the services DevPilot should manage',
+    options: detectedServices.map((service, index) => ({
+      value: index,
+      label: service.name,
+      hint: service.framework ? `${service.dir} · ${service.framework}` : service.dir
+    })),
+    initialValues: detectedServices.map((service, index) => index),
+    required: false
+  }));
+  const services = chosen
+    .sort((a, b) => a - b)
+    .map((index) => detectedServices[index]);
+  const editCommands = await answer(clack.confirm({
+    message: 'Edit commands for selected services?',
+    initialValue: false
+  }));
+
+  if (!editCommands) {
+    return services;
+  }
+
+  const edited = [];
+
+  for (const service of services) {
+    edited.push(await editService(service));
+  }
+
+  return edited;
 }
 
 async function editService(service) {
@@ -261,7 +273,16 @@ async function editService(service) {
   const build = await answer(clack.text({ message: 'Build command', initialValue: service.build, placeholder: 'leave empty to skip' }));
   const lint = await answer(clack.text({ message: 'Lint command', initialValue: service.lint, placeholder: 'leave empty to skip' }));
 
-  return cleanService({ dir, name, dev, build, lint, color: service.color });
+  return cleanService({
+    dir,
+    name,
+    dev,
+    build,
+    lint,
+    color: service.color,
+    framework: service.framework,
+    port: service.port
+  });
 }
 
 async function promptService(packageManager) {

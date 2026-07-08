@@ -2,7 +2,7 @@
 
 const clack = require('@clack/prompts');
 
-const { clearScreen, header, line, paint, style, waitForEnter } = require('./ui');
+const { clearScreen, header, line, paint, style, padVisible, waitForEnter } = require('./ui');
 const { error: logError } = require('./logger');
 const { selectOption } = require('./search-select');
 
@@ -10,6 +10,7 @@ async function showMenu(context, runCommand) {
   while (true) {
     clearScreen();
     header(context.config);
+    printServiceOverview(context.config);
     line();
 
     const action = await selectOption({
@@ -22,6 +23,8 @@ async function showMenu(context, runCommand) {
         { value: 'open', label: 'Open Directory', hint: 'open the project or a service in your file manager' },
         { value: 'code', label: 'Open in Editor', hint: 'open the project or a service in your editor' },
         { value: 'clean', label: 'Clean Project', hint: 'remove node_modules, dist, and caches' },
+        { value: 'status', label: 'Workspace Status', hint: 'check service availability when ports are known' },
+        { value: 'info', label: 'Workspace Info', hint: 'show detected frameworks and workspace details' },
         { value: 'doctor', label: 'Doctor', hint: 'check local tooling and configuration' },
         { value: 'update', label: 'Update Project', hint: 'pull latest changes and reinstall' },
         { value: 'about', label: 'About', hint: 'version and project links' },
@@ -49,6 +52,25 @@ async function showMenu(context, runCommand) {
 
     line();
     await waitForEnter(`  ${paint('Press Enter to return to the menu…', 'dim')}`);
+  }
+}
+
+function printServiceOverview(config) {
+  const services = (config.services || []).filter((service) => service.framework);
+
+  if (services.length === 0) {
+    return;
+  }
+
+  const visible = services.slice(0, 6);
+
+  line();
+  visible.forEach((service) => {
+    line(`  ${style(padVisible(service.name, 18), 'white', 'bold')} ${paint(service.framework, 'dim')}`);
+  });
+
+  if (services.length > visible.length) {
+    line(`  ${paint(`+${services.length - visible.length} more`, 'dim')}`);
   }
 }
 
