@@ -1,6 +1,6 @@
 # 🚀 DevPilot
 
-> **One command. Every service. Any project.**
+> **Stop opening five terminals every morning. One command to run your entire development workspace.**
 
 DevPilot is a **developer workspace manager** for multi-service projects.
 
@@ -77,6 +77,9 @@ From there they can:
 * Install dependencies
 * Build services
 * Run lint checks
+* See running services
+* Follow service logs
+* Restart or stop services
 * Clean generated files
 * Verify project health
 * Update repositories
@@ -95,8 +98,11 @@ One workflow.
 * 🔍 Automatically detects service folders
 * 🛠 Guided project setup
 * 🖥 Launch services in terminal tabs (where supported)
+* 🧭 Workspace status for DevPilot-managed services
+* 📜 Local service logs under `.devpilot/runtime/logs/`
+* 🔁 Restart and stop services started by DevPilot
 * 📂 Works from anywhere after setup
-* 🧹 Built-in install, build, lint, clean, doctor and update commands
+* 🧹 Built-in install, build, lint, clean, status, logs, stop, restart, doctor and update commands
 * 🔄 Automatic background update notifications
 * 🔒 Keeps machine-specific configuration out of Git by default
 * 🌎 Cross-platform
@@ -199,6 +205,10 @@ my-services install
 my-services build
 my-services lint
 my-services clean
+my-services status
+my-services logs
+my-services restart backend
+my-services stop
 my-services doctor
 my-services update
 my-services about
@@ -223,9 +233,50 @@ devpilot doctor
 | `build`   | Build every configured service                                               |
 | `lint`    | Run lint commands                                                            |
 | `clean`   | Remove generated folders like `node_modules`, `.next`, `dist` and `coverage` |
+| `status`  | Show DevPilot-managed service state and uptime                               |
+| `logs`    | Follow logs for all services or a specific service                           |
+| `stop`    | Stop all DevPilot-managed services or one named service                      |
+| `restart` | Restart all runnable services or one named service                           |
 | `doctor`  | Verify local tools and project configuration                                 |
 | `update`  | Pull the latest Git changes and reinstall dependencies                       |
 | `about`   | Display DevPilot information                                                 |
+
+---
+
+# Managing Running Services
+
+DevPilot tracks only the services it starts. Runtime data stays local in:
+
+```text
+.devpilot/runtime/
+├── logs/
+└── registry.json
+```
+
+Check what is running.
+
+```bash
+my-services status
+```
+
+Follow logs without stopping services.
+
+```bash
+my-services logs
+my-services logs backend
+```
+
+Restart or stop services.
+
+```bash
+my-services restart
+my-services restart backend
+
+my-services stop
+my-services stop backend
+```
+
+DevPilot never scans for or kills random processes on your machine.
 
 ---
 

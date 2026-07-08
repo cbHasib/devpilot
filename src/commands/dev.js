@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 
 const {
@@ -12,9 +14,12 @@ const {
   style
 } = require('../ui');
 const { info, success, warning } = require('../logger');
-const { commandExists, isWsl, shellQuote, appleQuote, winQuote, servicePath } = require('../utils');
+const { commandExists, isWsl, shellQuote, appleQuote, winQuote } = require('../utils');
 const { TAB_COLORS } = require('../constants');
 const { serviceExecutionIssue, serviceExecutionWarnings } = require('../validation');
+const { startService } = require('../runtime/processManager');
+const { updateEntry } = require('../runtime/registry');
+const { confirmStopServices } = require('../runtime/signals');
 
 async function startDevelopment(context) {
   const { config } = context;
@@ -109,7 +114,7 @@ function devRunningBanner(count, placement) {
 
 function openMacTabs(context, services) {
   services.forEach((service) => {
-    const command = `cd ${shellQuote(servicePath(context, service))}; ${service.dev}`;
+    const command = managedServiceCommand(context, service);
     const script = [
       'tell application "Terminal"',
       'activate',
@@ -127,7 +132,7 @@ function openMacTabs(context, services) {
 
 function openGnomeTabs(context, services) {
   services.forEach((service) => {
-    const command = `cd ${shellQuote(servicePath(context, service))} && ${service.dev}; exec bash`;
+    const command = `${managedServiceCommand(context, service)}; exec bash`;
     spawn('gnome-terminal', [
       '--tab',
       `--title=${service.name}`,
@@ -144,11 +149,11 @@ function openGnomeTabs(context, services) {
 
 function openKonsoleTabs(context, services) {
   services.forEach((service) => {
-    const command = `cd ${shellQuote(servicePath(context, service))} && ${service.dev}; exec bash`;
+    const command = `${managedServiceCommand(context, service)}; exec bash`;
     spawn('konsole', [
       '--new-tab',
       '--workdir',
-      servicePath(context, service),
+      context.root,
       '-p',
       `tabtitle=${service.name}`,
       '-e',
@@ -165,9 +170,9 @@ function openKonsoleTabs(context, services) {
 function openWindowsTabs(context, services) {
   const command = services
     .map((service, index) => {
-      const dir = winQuote(servicePath(context, service));
+      const dir = winQuote(context.root);
       const color = tabColor(service, index);
-      return `new-tab --title ${winQuote(service.name)} --tabColor ${winQuote(color)} -d ${dir} cmd /k ${winQuote(service.dev)}`;
+      return `new-tab --title ${winQuote(service.name)} --tabColor ${winQuote(color)} -d ${dir} cmd /k ${winQuote(managedServiceCommand(context, service, 'win'))}`;
     })
     .join(' ; ');
 
@@ -186,8 +191,8 @@ function tabColor(service, index) {
 
 function openWindowsWindows(context, services) {
   services.forEach((service) => {
-    const dir = winQuote(servicePath(context, service));
-    const command = `start ${winQuote(service.name)} /D ${dir} cmd /k ${winQuote(service.dev)}`;
+    const dir = winQuote(context.root);
+    const command = `start ${winQuote(service.name)} /D ${dir} cmd /k ${winQuote(managedServiceCommand(context, service, 'win'))}`;
 
     spawn(command, {
       shell: true,
@@ -202,8 +207,9 @@ async function runDevHere(context, services) {
   line('Press Ctrl+C to stop all services.');
   line();
 
-  const children = [];
+  const running = [];
   let stopping = false;
+  let prompting = false;
 
   const stopChildren = () => {
     if (stopping) {
@@ -211,16 +217,33 @@ async function runDevHere(context, services) {
     }
 
     stopping = true;
-    children.forEach((child) => {
+    running.forEach(({ child, key }) => {
       if (!child.killed) {
-        child.kill('SIGTERM');
+        killChild(child);
       }
+
+      updateEntry(context.root, key, {
+        status: 'stopped',
+        stoppedAt: new Date().toISOString()
+      });
     });
   };
 
-  const onSignal = () => {
-    stopChildren();
-    process.exit(130);
+  const onSignal = async () => {
+    if (prompting) {
+      return;
+    }
+
+    prompting = true;
+    const shouldStop = await confirmStopServices();
+
+    if (shouldStop) {
+      stopChildren();
+      process.exit(130);
+      return;
+    }
+
+    prompting = false;
   };
 
   process.once('SIGINT', onSignal);
@@ -229,17 +252,9 @@ async function runDevHere(context, services) {
   try {
     const results = await Promise.all(services.map((service) => {
       line(`${paint(`[${service.name}]`, 'cyan')} ${service.dev}`);
-      const child = spawn(service.dev, {
-        cwd: servicePath(context, service),
-        shell: true,
-        stdio: 'inherit'
-      });
-      children.push(child);
-
-      return new Promise((resolve) => {
-        child.on('error', () => resolve(1));
-        child.on('close', (code) => resolve(code || 0));
-      });
+      const serviceProcess = startService(context, service, { mirror: true });
+      running.push(serviceProcess);
+      return serviceProcess.done;
     }));
 
     const failed = results.find((code) => code !== 0);
@@ -253,4 +268,54 @@ async function runDevHere(context, services) {
   }
 }
 
-module.exports = { startDevelopment };
+async function runManagedService(context, args) {
+  const target = args[0];
+  const service = findService(context, target);
+
+  if (!service) {
+    warning(`Service not found: ${target || 'missing service name'}`);
+    return;
+  }
+
+  await startService(context, service, { mirror: true, terminalSession: process.env.TERM_PROGRAM || process.env.TERM || null }).done;
+}
+
+function findService(context, target) {
+  const normalized = String(target || '').toLowerCase();
+  return (context.config.services || []).find((service) => (
+    service.dir.toLowerCase() === normalized || service.name.toLowerCase() === normalized
+  ));
+}
+
+function managedServiceCommand(context, service, platform = 'posix') {
+  const args = [
+    process.execPath,
+    cliEntryPath(),
+    '--project',
+    context.root,
+    '__run-service',
+    service.dir
+  ];
+  const quote = platform === 'win' ? winQuote : shellQuote;
+
+  return args.map(quote).join(' ');
+}
+
+function cliEntryPath() {
+  return fs.realpathSync(path.join(__dirname, '..', '..', 'bin', 'devpilot.js'));
+}
+
+function killChild(child) {
+  if (process.platform === 'win32') {
+    child.kill('SIGTERM');
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, 'SIGTERM');
+  } catch (error) {
+    child.kill('SIGTERM');
+  }
+}
+
+module.exports = { runManagedService, startDevelopment };

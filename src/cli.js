@@ -62,7 +62,7 @@ async function main() {
   }
 
   const selectedCommand = command || 'menu';
-  await runCommand(selectedCommand, context);
+  await runCommand(selectedCommand, context, parsed.args.slice(1));
 }
 
 function showHelp() {
@@ -82,7 +82,7 @@ function showHelp() {
   line();
 }
 
-async function runCommand(command, context) {
+async function runCommand(command, context, args = []) {
   const commandDefinition = findCommand(command);
 
   if (!commandDefinition) {
@@ -99,7 +99,7 @@ async function runCommand(command, context) {
     return;
   }
 
-  await commandDefinition.handler(context, [], runCommand);
+  await commandDefinition.handler(context, args, runCommand);
 }
 
 module.exports = { main };

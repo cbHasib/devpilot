@@ -2,10 +2,13 @@
 
 const { setupProject } = require('../setup');
 const { showMenu } = require('../menu');
-const { startDevelopment } = require('./dev');
+const { runManagedService, startDevelopment } = require('./dev');
 const { installAll } = require('./install');
 const { runForServices } = require('./tasks');
 const { cleanProject } = require('./clean');
+const { stopServices } = require('./stop');
+const { restartServices } = require('./restart');
+const { showLogs } = require('./logs');
 const { doctor } = require('./doctor');
 const { updateProject } = require('./update');
 const { showAbout } = require('./about');
@@ -26,6 +29,12 @@ const commands = [
     description: 'Open the interactive menu',
     hidden: true,
     handler: (context, args, runCommand) => showMenu(context, runCommand)
+  },
+  {
+    name: '__run-service',
+    description: 'Run one managed service',
+    hidden: true,
+    handler: runManagedService
   },
   {
     name: 'dev',
@@ -66,6 +75,21 @@ const commands = [
     name: 'status',
     description: 'Show workspace service status',
     handler: showStatus
+  },
+  {
+    name: 'stop',
+    description: 'Stop DevPilot-managed services',
+    handler: stopServices
+  },
+  {
+    name: 'restart',
+    description: 'Restart DevPilot-managed services',
+    handler: restartServices
+  },
+  {
+    name: 'logs',
+    description: 'Show logs for DevPilot-managed services',
+    handler: showLogs
   },
   {
     name: 'info',
