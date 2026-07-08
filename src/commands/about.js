@@ -1,18 +1,35 @@
 'use strict';
 
+const os = require('os');
+const path = require('path');
+
 const { header, section, line, paint, style, padVisible } = require('../ui');
+const { CONFIG_FILE } = require('../constants');
+const { platformLabel } = require('../utils');
 const pkg = require('../../package.json');
 
-function showAbout(config) {
+function showAbout(context) {
+  const config = context.config || context;
   const repoUrl = String(pkg.homepage || '').replace(/#.*$/, '');
   const issuesUrl = (pkg.bugs && pkg.bugs.url) || `${repoUrl}/issues`;
   const npmUrl = `https://www.npmjs.com/package/${pkg.name}`;
+  const repository = pkg.repository && pkg.repository.url
+    ? pkg.repository.url.replace(/^git\+/, '').replace(/\.git$/, '')
+    : repoUrl;
 
   header(config);
 
-  section('About');
-  line(`    ${style('DevPilot', 'accent', 'bold')} ${paint(`v${pkg.version}`, 'dim')} ${paint('·', 'gray')} ${paint(`${pkg.license} license`, 'dim')}`);
-  line(`    ${paint(pkg.description, 'gray')}`);
+  section('DevPilot');
+  row('version', style(pkg.version, 'white', 'bold'));
+  row('author', pkg.author || 'Unknown');
+  row('github', link(repository));
+  row('homepage', link(pkg.homepage || repoUrl));
+  row('license', pkg.license || 'Unknown');
+  row('node', process.version);
+  row('os', `${platformLabel()} ${os.release()}`);
+  row('config', context.root ? path.join(context.root, CONFIG_FILE) : 'Not loaded');
+  row('package', link(npmUrl));
+  row('issues', link(issuesUrl));
 
   section('Philosophy');
   principle('Configure once', 'one .devpilot.json describes the whole workspace.');
@@ -20,20 +37,8 @@ function showAbout(config) {
   principle('One entry point', 'dev, install, build, lint, clean, and doctor for every service.');
   principle('Stay out of the way', 'no daemons, no state beyond a small config file.');
 
-  section('Author');
-  line(`    ${style('Hasibul Hasan', 'white', 'bold')}`);
-  row('github', link('https://github.com/cbHasib'));
-  row('npm', link('https://www.npmjs.com/~cbhasib'));
-  row('website', link('https://hasib.me'));
-
-  section('Links');
-  row('repository', link(repoUrl));
-  row('package', link(npmUrl));
-  row('issues', link(issuesUrl));
-
   section('Update');
   row('install', style(`npm install -g ${pkg.name}@latest`, 'cyan', 'bold'));
-  row('node', paint(process.version, 'dim'));
   line();
 }
 

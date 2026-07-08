@@ -5,22 +5,40 @@ const { spawn, spawnSync } = require('child_process');
 const {
   header,
   section,
-  success,
-  warning,
   line,
   rule,
   bannerRow,
   paint,
   style
 } = require('../ui');
+const { info, success, warning } = require('../logger');
 const { commandExists, isWsl, shellQuote, appleQuote, winQuote, servicePath } = require('../utils');
 const { TAB_COLORS } = require('../constants');
+const { serviceExecutionIssue, serviceExecutionWarnings } = require('../validation');
 
 async function startDevelopment(context) {
   const { config } = context;
-  const services = config.services.filter((service) => service.dev);
 
   header(config);
+
+  const services = config.services
+    .filter((service) => service.dev)
+    .filter((service) => {
+      const issue = serviceExecutionIssue(context, service, 'dev');
+
+      if (issue) {
+        warning(issue.message);
+        info(issue.guidance);
+        return false;
+      }
+
+      serviceExecutionWarnings(context, service).forEach((item) => {
+        warning(item.message);
+        info(item.guidance);
+      });
+
+      return true;
+    });
 
   if (services.length === 0) {
     warning('No services have a dev command configured.');
@@ -37,6 +55,11 @@ async function startDevelopment(context) {
     && process.platform === 'linux'
     && !isWsl()
     && commandExists('gnome-terminal');
+  const useKonsoleTabs = wantTabs
+    && process.platform === 'linux'
+    && !isWsl()
+    && !useGnomeTabs
+    && commandExists('konsole');
   const useWindowsTabs = wantTabs
     && process.platform === 'win32'
     && commandExists('wt');
@@ -44,7 +67,7 @@ async function startDevelopment(context) {
     && process.platform === 'win32'
     && !useWindowsTabs;
 
-  if (!useMacTabs && !useGnomeTabs && !useWindowsTabs && !useWindowsWindows) {
+  if (!useMacTabs && !useGnomeTabs && !useKonsoleTabs && !useWindowsTabs && !useWindowsWindows) {
     await runDevHere(context, services);
     return;
   }
@@ -57,6 +80,8 @@ async function startDevelopment(context) {
     openMacTabs(context, services);
   } else if (useGnomeTabs) {
     openGnomeTabs(context, services);
+  } else if (useKonsoleTabs) {
+    openKonsoleTabs(context, services);
   } else if (useWindowsTabs) {
     openWindowsTabs(context, services);
   } else {
@@ -107,6 +132,26 @@ function openGnomeTabs(context, services) {
       '--tab',
       `--title=${service.name}`,
       '--',
+      'bash',
+      '-lc',
+      command
+    ], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref();
+  });
+}
+
+function openKonsoleTabs(context, services) {
+  services.forEach((service) => {
+    const command = `cd ${shellQuote(servicePath(context, service))} && ${service.dev}; exec bash`;
+    spawn('konsole', [
+      '--new-tab',
+      '--workdir',
+      servicePath(context, service),
+      '-p',
+      `tabtitle=${service.name}`,
+      '-e',
       'bash',
       '-lc',
       command

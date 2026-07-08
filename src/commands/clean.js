@@ -3,7 +3,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const { header, section, success, info, completionBanner } = require('../ui');
+const { header, section, completionBanner } = require('../ui');
+const { info, success, warning } = require('../logger');
 const { servicePath } = require('../utils');
 
 function cleanProject(context) {
@@ -14,6 +15,12 @@ function cleanProject(context) {
     section(`Clean: ${service.name}`);
     const root = servicePath(context, service);
     let removed = 0;
+
+    if (!fs.existsSync(root)) {
+      warning(`Cannot find ${service.dir}/.`);
+      info('Check your configuration or run devpilot setup.');
+      return;
+    }
 
     targets.forEach((target) => {
       const fullPath = path.join(root, target);

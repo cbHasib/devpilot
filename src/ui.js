@@ -81,15 +81,14 @@ function header(config) {
 
   if (config) {
     const count = config.services ? config.services.length : 0;
-    const services = config.packageManager
-      ? `${paint(String(count), 'white')} ${paint('·', 'gray')} ${paint(config.packageManager, 'white')}`
-      : paint(String(count), 'white');
 
     line(bannerRow(paint(`  ${'─'.repeat(BANNER_WIDTH - 6)}`, 'gray')));
     line(bannerRow(''));
     headerRow('project', style(config.projectName, 'white', 'bold'));
-    headerRow('services', services);
+    headerRow('services', paint(String(count), 'white'));
+    headerRow('package', paint(packageManagerLabel(config.packageManager), 'white'));
     headerRow('alias', paint(config.alias, 'white'));
+    headerRow('version', paint(`v${pkg.version}`, 'white'));
     line(bannerRow(''));
   }
 
@@ -128,6 +127,11 @@ function completionBanner(message) {
 
 function countLabel(count) {
   return `${count} ${count === 1 ? 'service' : 'services'}`;
+}
+
+function packageManagerLabel(packageManager) {
+  const value = String(packageManager || '').trim();
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : 'Unknown';
 }
 
 async function waitForEnter(message) {

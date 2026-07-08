@@ -4,11 +4,25 @@ const path = require('path');
 
 const clack = require('@clack/prompts');
 
+const pkg = require('../package.json');
 const { CONFIG_FILE, STATE_DIR } = require('./constants');
 const { clearScreen, header, line, paint, style } = require('./ui');
-const { titleCase, defaultAlias } = require('./utils');
+const { info, success, warning } = require('./logger');
+const {
+  titleCase,
+  defaultAlias,
+  packageManagerLabel,
+  isGitRepo,
+  detectLaunchMode,
+  detectTerminal
+} = require('./utils');
 const { writeConfig, ensureGitignore } = require('./config');
-const { cleanService, detectServices, detectPackageManager, scriptCommand } = require('./services');
+const {
+  cleanService,
+  detectServices,
+  detectPackageManagerInfo,
+  scriptCommand
+} = require('./services');
 const { createGlobalAlias } = require('./alias');
 const { answer, requiredField } = require('./prompts');
 
@@ -20,6 +34,7 @@ async function setupProject() {
   line();
 
   clack.intro(`Setting up DevPilot in ${paint(root, 'cyan')}`);
+  printSetupDetections(root);
 
   const defaultName = titleCase(path.basename(root));
   const projectName = await answer(clack.text({
@@ -46,25 +61,8 @@ async function setupProject() {
     }
   }));
 
-  const packageManager = await answer(clack.select({
-    message: 'Package manager',
-    options: [
-      { value: 'yarn', label: 'yarn' },
-      { value: 'npm', label: 'npm' },
-      { value: 'pnpm', label: 'pnpm' },
-      { value: 'bun', label: 'bun' }
-    ],
-    initialValue: detectPackageManager(root)
-  }));
-
-  const launchMode = await answer(clack.select({
-    message: 'Development launch mode',
-    options: [
-      { value: 'tabs', label: 'Terminal tabs', hint: 'open each service in its own tab' },
-      { value: 'current', label: 'Current terminal', hint: 'run every service in this terminal' }
-    ],
-    initialValue: 'tabs'
-  }));
+  const packageManager = await choosePackageManager(root);
+  const launchMode = await chooseLaunchMode();
 
   const editor = await answer(clack.text({
     message: 'Editor command',
@@ -135,7 +133,11 @@ async function setupProject() {
     launchMode,
     editor,
     services,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    lastUpdated: '',
+    devpilotVersion: pkg.version,
+    workspace: {},
+    features: {}
   };
 
   writeConfig(root, config);
@@ -151,19 +153,103 @@ async function setupProject() {
     try {
       aliasPath = await createGlobalAlias(alias, root);
     } catch (error) {
-      clack.log.warn(`Could not create the global alias: ${error.message}`);
-      clack.log.warn(`Run "${alias}" via "devpilot" for now, or re-run setup from an elevated terminal.`);
+      warning(`Could not create the global alias: ${error.message}`);
+      warning(`Run "${alias}" via "devpilot" for now, or re-run setup from an elevated terminal.`);
     }
   }
 
+  printWorkspaceSummary(config, aliasPath);
+  clack.outro(`Try ${paint(`${alias} dev`, 'cyan')} or ${paint('devpilot', 'cyan')}.`);
+}
+
+function printSetupDetections(root) {
+  const terminal = detectTerminal();
+
+  if (isGitRepo(root)) {
+    success('Detected Git repository.');
+  } else {
+    info('No Git repository detected. The update command will skip git pull.');
+  }
+
+  info(`Detected terminal: ${terminal.name}.`);
+}
+
+async function choosePackageManager(root) {
+  const detected = detectPackageManagerInfo(root);
+
+  if (detected.detected) {
+    const useDetected = await answer(clack.confirm({
+      message: `Detected ${packageManagerLabel(detected.value)} from ${detected.source}. Use detected package manager?`,
+      initialValue: true
+    }));
+
+    if (useDetected) {
+      return detected.value;
+    }
+  }
+
+  return answer(clack.select({
+    message: detected.detected ? 'Package manager' : 'Package manager',
+    options: [
+      { value: 'yarn', label: 'yarn' },
+      { value: 'npm', label: 'npm' },
+      { value: 'pnpm', label: 'pnpm' },
+      { value: 'bun', label: 'bun' }
+    ],
+    initialValue: detected.value
+  }));
+}
+
+async function chooseLaunchMode() {
+  const detected = detectLaunchMode();
+  const label = detected === 'tabs' ? 'terminal tabs' : 'current terminal';
+  const useDetected = await answer(clack.confirm({
+    message: `Detected ${label}. Use detected launch mode?`,
+    initialValue: true
+  }));
+
+  if (useDetected) {
+    return detected;
+  }
+
+  return answer(clack.select({
+    message: 'Development launch mode',
+    options: [
+      { value: 'tabs', label: 'Terminal tabs', hint: 'open each service in its own tab' },
+      { value: 'current', label: 'Current terminal', hint: 'run every service in this terminal' }
+    ],
+    initialValue: detected
+  }));
+}
+
+function printWorkspaceSummary(config, aliasPath) {
+  const commands = [
+    config.alias,
+    `${config.alias} dev`,
+    `${config.alias} build`
+  ].join('\n');
   const summary = [
+    'Project',
+    config.projectName,
+    '',
+    'Alias',
+    config.alias,
+    '',
+    'Package Manager',
+    packageManagerLabel(config.packageManager),
+    '',
+    'Services',
+    String(config.services.length),
+    '',
+    'Commands',
+    commands,
+    '',
     `Wrote ${CONFIG_FILE}`,
     `Updated .gitignore with ${CONFIG_FILE} and ${STATE_DIR}/`,
     aliasPath ? `Created alias: ${aliasPath}` : null
-  ].filter(Boolean).join('\n');
+  ].filter((value) => value !== null).join('\n');
 
-  clack.note(summary, 'Done');
-  clack.outro(`Try ${paint(`${alias} dev`, 'cyan')} or ${paint('devpilot', 'cyan')}.`);
+  clack.note(summary, 'Workspace Ready');
 }
 
 async function editService(service) {

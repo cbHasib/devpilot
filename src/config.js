@@ -3,8 +3,10 @@
 const fs = require('fs');
 const path = require('path');
 
+const pkg = require('../package.json');
 const { CONFIG_FILE, STATE_DIR } = require('./constants');
-const { readJson } = require('./utils');
+const { defaultAlias, readJson, titleCase } = require('./utils');
+const { cleanService, detectPackageManager } = require('./services');
 
 function loadProjectContext(startDir) {
   const resolved = path.resolve(startDir);
@@ -15,8 +17,21 @@ function loadProjectContext(startDir) {
     return null;
   }
 
-  const config = readJson(path.join(root, CONFIG_FILE));
-  return { root, config };
+  const configPath = path.join(root, CONFIG_FILE);
+  let config = {};
+  let configError = null;
+
+  try {
+    config = readJson(configPath);
+  } catch (error) {
+    configError = error;
+  }
+
+  return {
+    root,
+    configPath,
+    config: normalizeConfig(config, root, configError)
+  };
 }
 
 function findConfigRoot(startDir) {
@@ -39,7 +54,46 @@ function findConfigRoot(startDir) {
 
 function writeConfig(root, config) {
   const file = path.join(root, CONFIG_FILE);
-  fs.writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`);
+  const now = new Date().toISOString();
+  const next = normalizeConfig(config, root);
+
+  next.createdAt = next.createdAt || now;
+  next.lastUpdated = now;
+  next.devpilotVersion = pkg.version;
+  delete next._configError;
+
+  fs.writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`);
+}
+
+function normalizeConfig(config, root, configError = null) {
+  const source = config && typeof config === 'object' ? config : {};
+  const projectName = stringValue(source.projectName) || titleCase(path.basename(root));
+  const packageManager = stringValue(source.packageManager) || detectPackageManager(root);
+
+  return {
+    ...source,
+    schemaVersion: source.schemaVersion || 1,
+    projectName,
+    alias: stringValue(source.alias) || defaultAlias(projectName || path.basename(root)),
+    packageManager,
+    launchMode: source.launchMode === 'current' ? 'current' : 'tabs',
+    editor: stringValue(source.editor) || 'code',
+    services: Array.isArray(source.services) ? source.services.map(cleanService) : [],
+    createdAt: stringValue(source.createdAt),
+    lastUpdated: stringValue(source.lastUpdated),
+    devpilotVersion: stringValue(source.devpilotVersion) || pkg.version,
+    workspace: objectValue(source.workspace),
+    features: objectValue(source.features),
+    _configError: configError ? configError.message : null
+  };
+}
+
+function stringValue(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function objectValue(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
 function ensureGitignore(root) {
@@ -65,4 +119,10 @@ function ensureGitignore(root) {
   fs.writeFileSync(gitignorePath, content);
 }
 
-module.exports = { loadProjectContext, findConfigRoot, writeConfig, ensureGitignore };
+module.exports = {
+  loadProjectContext,
+  findConfigRoot,
+  writeConfig,
+  ensureGitignore,
+  normalizeConfig
+};

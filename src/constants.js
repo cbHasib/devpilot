@@ -3,6 +3,7 @@
 const CONFIG_FILE = '.devpilot.json';
 const STATE_DIR = '.devpilot';
 const ALIAS_MARKER = 'DevPilot generated alias';
+const SUPPORTED_PACKAGE_MANAGERS = ['yarn', 'npm', 'pnpm', 'bun'];
 
 // Palette used to give each service a distinct terminal tab color when the
 // service does not define its own `color`. Cycled through by service index.
@@ -17,4 +18,10 @@ const TAB_COLORS = [
   '#4b5563'
 ];
 
-module.exports = { CONFIG_FILE, STATE_DIR, ALIAS_MARKER, TAB_COLORS };
+module.exports = {
+  CONFIG_FILE,
+  STATE_DIR,
+  ALIAS_MARKER,
+  SUPPORTED_PACKAGE_MANAGERS,
+  TAB_COLORS
+};

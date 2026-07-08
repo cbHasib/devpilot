@@ -2,10 +2,11 @@
 'use strict';
 
 const { main } = require('../src/cli');
-const { line, fail } = require('../src/ui');
+const { line } = require('../src/ui');
+const { error: logError } = require('../src/logger');
 
 main().catch((error) => {
   line();
-  fail(error.message);
+  logError(error.message);
   process.exitCode = 1;
 });

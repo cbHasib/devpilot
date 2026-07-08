@@ -8,6 +8,7 @@ const { execFileSync } = require('child_process');
 const clack = require('@clack/prompts');
 
 const { ALIAS_MARKER } = require('./constants');
+const { success, warning } = require('./logger');
 const { answer } = require('./prompts');
 const { shellQuote } = require('./utils');
 
@@ -88,6 +89,42 @@ function pathDirs() {
     .map((entry) => path.resolve(entry));
 }
 
+function aliasStatus(alias, projectRoot) {
+  if (!alias) {
+    return { installed: false, path: null, generated: false, matchesProject: false };
+  }
+
+  const names = process.platform === 'win32' ? [`${alias}.cmd`, alias] : [alias];
+  const root = String(projectRoot || '');
+  const posixRoot = toPosixPath(root);
+
+  for (const dir of pathDirs()) {
+    for (const name of names) {
+      const candidate = path.join(dir, name);
+
+      if (!fs.existsSync(candidate)) {
+        continue;
+      }
+
+      const content = readAlias(candidate);
+      const generated = content.includes(ALIAS_MARKER);
+      const matchesProject = generated && (content.includes(root) || content.includes(posixRoot));
+
+      return { installed: true, path: candidate, generated, matchesProject };
+    }
+  }
+
+  return { installed: false, path: null, generated: false, matchesProject: false };
+}
+
+function readAlias(file) {
+  try {
+    return fs.readFileSync(file, 'utf8');
+  } catch (error) {
+    return '';
+  }
+}
+
 async function ensureOnPath(dir) {
   if (pathDirs().includes(path.resolve(dir))) {
     return;
@@ -102,13 +139,13 @@ async function ensureOnPath(dir) {
   }));
 
   if (!shouldAdd) {
-    clack.log.warn(`Add it yourself:  echo '${exportLine}' >> ${profile}`);
+    warning(`Add it yourself:  echo '${exportLine}' >> ${profile}`);
     return;
   }
 
   appendToProfile(profile, exportLine);
-  clack.log.success(`Added ${dir} to PATH in ${profile}.`);
-  clack.log.warn(`Restart your shell or run: source ${profile}`);
+  success(`Added ${dir} to PATH in ${profile}.`);
+  warning(`Restart your shell or run: source ${profile}`);
 }
 
 function shellProfile() {
@@ -193,7 +230,7 @@ async function writeAliasFile(aliasPath, content) {
       }));
 
       if (!overwrite) {
-        clack.log.warn('Skipped alias creation.');
+        warning('Skipped alias creation.');
         return false;
       }
     }
@@ -222,4 +259,4 @@ function getGlobalBinDir() {
   }
 }
 
-module.exports = { createGlobalAlias };
+module.exports = { createGlobalAlias, aliasStatus };

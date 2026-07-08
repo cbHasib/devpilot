@@ -4,19 +4,11 @@ const path = require('path');
 
 const pkg = require('../package.json');
 const { CONFIG_FILE } = require('./constants');
-const { header, line, paint, style, padVisible, warning, fail } = require('./ui');
+const { header, line, paint, style, padVisible } = require('./ui');
+const { warning, error } = require('./logger');
 const { loadProjectContext } = require('./config');
-const { setupProject } = require('./setup');
-const { showMenu } = require('./menu');
 const { scheduleUpdateCheck } = require('./update-check');
-const { startDevelopment } = require('./commands/dev');
-const { installAll } = require('./commands/install');
-const { runForServices } = require('./commands/tasks');
-const { cleanProject } = require('./commands/clean');
-const { doctor } = require('./commands/doctor');
-const { updateProject } = require('./commands/update');
-const { showAbout } = require('./commands/about');
-const { openDirectory, openInEditor } = require('./commands/open');
+const { findCommand, visibleCommands } = require('./commands/registry');
 
 function parseArgs(argv) {
   const args = [];
@@ -38,8 +30,6 @@ function parseArgs(argv) {
 }
 
 async function main() {
-  scheduleUpdateCheck();
-
   const parsed = parseArgs(process.argv.slice(2));
   const command = parsed.args[0];
 
@@ -53,8 +43,12 @@ async function main() {
     return;
   }
 
-  if (command === 'setup' || command === 'init') {
-    await setupProject();
+  scheduleUpdateCheck();
+
+  const commandDefinition = findCommand(command);
+
+  if (commandDefinition && commandDefinition.requiresContext === false) {
+    await commandDefinition.handler();
     return;
   }
 
@@ -77,20 +71,9 @@ function showHelp() {
   line();
   line(`  ${style('Commands', 'white', 'bold')}`);
 
-  const commands = [
-    ['setup', 'Configure the current project'],
-    ['dev', 'Start all configured services'],
-    ['install', 'Install dependencies for all services'],
-    ['build', 'Build all services'],
-    ['lint', 'Lint all services'],
-    ['open', 'Open the project or a service in your file manager'],
-    ['code', 'Open the project or a service in your editor'],
-    ['clean', 'Remove generated folders'],
-    ['doctor', 'Check local tooling'],
-    ['update', 'Pull latest changes and install dependencies'],
-    ['about', 'Show CLI information'],
-    ['help', 'Show this help']
-  ];
+  const commands = visibleCommands()
+    .map((entry) => [entry.name, entry.description])
+    .concat([['help', 'Show this help']]);
 
   commands.forEach(([name, description]) => {
     line(`    ${style(padVisible(name, 9), 'accent')} ${paint(description, 'dim')}`);
@@ -100,52 +83,23 @@ function showHelp() {
 }
 
 async function runCommand(command, context) {
-  switch (command) {
-    case 'menu':
-      if (!process.stdin.isTTY) {
-        showHelp();
-        break;
-      }
+  const commandDefinition = findCommand(command);
 
-      await showMenu(context, runCommand);
-      break;
-    case 'dev':
-      await startDevelopment(context);
-      break;
-    case 'install':
-      await installAll(context);
-      break;
-    case 'build':
-      await runForServices(context, 'build', 'Build All Services');
-      break;
-    case 'lint':
-      await runForServices(context, 'lint', 'Lint All Services');
-      break;
-    case 'open':
-      await openDirectory(context);
-      break;
-    case 'code':
-      await openInEditor(context);
-      break;
-    case 'clean':
-      cleanProject(context);
-      break;
-    case 'doctor':
-      doctor(context);
-      break;
-    case 'update':
-      await updateProject(context);
-      break;
-    case 'about':
-      showAbout(context.config);
-      break;
-    default:
-      header(context.config);
-      fail(`Unknown command: ${command}`);
-      line();
-      showHelp();
-      process.exitCode = 1;
+  if (!commandDefinition) {
+    header(context.config);
+    error(`Unknown command: ${command}`);
+    line();
+    showHelp();
+    process.exitCode = 1;
+    return;
   }
+
+  if (commandDefinition.name === 'menu' && !process.stdin.isTTY) {
+    showHelp();
+    return;
+  }
+
+  await commandDefinition.handler(context, [], runCommand);
 }
 
 module.exports = { main };

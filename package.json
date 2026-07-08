@@ -1,6 +1,6 @@
 {
   "name": "@cbhasib/devpilot",
-  "version": "0.2.14",
+  "version": "0.3.0",
   "description": "Reusable project management CLI for multi-service development workspaces.",
   "author": "Hasibul Hasan <cbHasib>",
   "license": "MIT",

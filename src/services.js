@@ -3,8 +3,20 @@
 const fs = require('fs');
 const path = require('path');
 
-const { STATE_DIR } = require('./constants');
-const { readJson, titleCase } = require('./utils');
+const { STATE_DIR, SUPPORTED_PACKAGE_MANAGERS } = require('./constants');
+const { readJsonSafe, titleCase } = require('./utils');
+
+const IGNORED_DIRS = new Set([
+  '.git',
+  '.next',
+  '.turbo',
+  'coverage',
+  'dist',
+  'node_modules',
+  STATE_DIR
+]);
+
+const WORKSPACE_DIRS = ['apps', 'packages', 'services'];
 
 function cleanService(service) {
   return {
@@ -18,37 +30,61 @@ function cleanService(service) {
 }
 
 function detectServices(root, packageManager) {
-  const ignored = new Set([
-    '.git',
-    '.next',
-    '.turbo',
-    'coverage',
-    'dist',
-    'node_modules',
-    STATE_DIR
-  ]);
-
-  return fs.readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && !ignored.has(entry.name))
-    .map((entry) => {
-      const packagePath = path.join(root, entry.name, 'package.json');
-
-      if (!fs.existsSync(packagePath)) {
-        return null;
-      }
-
-      const packageJson = readJson(packagePath);
-      const scripts = packageJson.scripts || {};
-
-      return cleanService({
-        dir: entry.name,
-        name: titleCase(packageJson.name || entry.name),
-        dev: inferScript(packageManager, scripts, ['start:dev', 'dev', 'start']),
-        build: inferScript(packageManager, scripts, ['build']),
-        lint: inferScript(packageManager, scripts, ['lint'])
-      });
-    })
+  return serviceDirectories(root)
+    .map((dir) => packageService(root, dir, packageManager))
     .filter(Boolean);
+}
+
+function serviceDirectories(root) {
+  const found = [];
+  const seen = new Set();
+
+  addChildDirectories(root, '', found, seen);
+
+  WORKSPACE_DIRS.forEach((workspaceDir) => {
+    addChildDirectories(path.join(root, workspaceDir), workspaceDir, found, seen);
+  });
+
+  return found;
+}
+
+function addChildDirectories(parent, prefix, found, seen) {
+  let entries = [];
+
+  try {
+    entries = fs.readdirSync(parent, { withFileTypes: true });
+  } catch (error) {
+    return;
+  }
+
+  entries
+    .filter((entry) => entry.isDirectory() && !IGNORED_DIRS.has(entry.name))
+    .forEach((entry) => {
+      const dir = prefix ? path.join(prefix, entry.name) : entry.name;
+
+      if (!seen.has(dir)) {
+        seen.add(dir);
+        found.push(dir);
+      }
+    });
+}
+
+function packageService(root, dir, packageManager) {
+  const packageJson = readJsonSafe(path.join(root, dir, 'package.json'));
+
+  if (!packageJson) {
+    return null;
+  }
+
+  const scripts = packageJson.scripts || {};
+
+  return cleanService({
+    dir,
+    name: titleCase(packageJson.name || path.basename(dir)),
+    dev: inferScript(packageManager, scripts, ['start:dev', 'dev', 'start']),
+    build: inferScript(packageManager, scripts, ['build']),
+    lint: inferScript(packageManager, scripts, ['lint'])
+  });
 }
 
 function inferScript(packageManager, scripts, candidates) {
@@ -73,23 +109,27 @@ function scriptCommand(packageManager, script) {
 }
 
 function detectPackageManager(root) {
+  return detectPackageManagerInfo(root).value;
+}
+
+function detectPackageManagerInfo(root) {
   if (fs.existsSync(path.join(root, 'yarn.lock'))) {
-    return 'yarn';
+    return { value: 'yarn', detected: true, source: 'yarn.lock' };
   }
 
   if (fs.existsSync(path.join(root, 'pnpm-lock.yaml'))) {
-    return 'pnpm';
+    return { value: 'pnpm', detected: true, source: 'pnpm-lock.yaml' };
   }
 
   if (fs.existsSync(path.join(root, 'bun.lockb')) || fs.existsSync(path.join(root, 'bun.lock'))) {
-    return 'bun';
+    return { value: 'bun', detected: true, source: 'bun.lock' };
   }
 
   if (fs.existsSync(path.join(root, 'package-lock.json'))) {
-    return 'npm';
+    return { value: 'npm', detected: true, source: 'package-lock.json' };
   }
 
-  return 'yarn';
+  return { value: 'yarn', detected: false, source: null };
 }
 
 function installCommand(packageManager) {
@@ -108,11 +148,17 @@ function installCommand(packageManager) {
   return 'yarn install';
 }
 
+function isSupportedPackageManager(packageManager) {
+  return SUPPORTED_PACKAGE_MANAGERS.includes(packageManager);
+}
+
 module.exports = {
   cleanService,
   detectServices,
+  detectPackageManagerInfo,
   inferScript,
   scriptCommand,
   detectPackageManager,
-  installCommand
+  installCommand,
+  isSupportedPackageManager
 };

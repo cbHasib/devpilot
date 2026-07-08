@@ -20,7 +20,7 @@ function runShell(command, cwd) {
         return;
       }
 
-      reject(new Error(`Command failed with exit code ${code}: ${command}`));
+      reject(new Error(`Command failed with exit code ${code}: ${command}\nRun devpilot doctor to check your workspace configuration.`));
     });
   });
 }
@@ -31,6 +31,14 @@ function servicePath(context, service) {
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+function readJsonSafe(file) {
+  try {
+    return readJson(file);
+  } catch (error) {
+    return null;
+  }
 }
 
 function titleCase(value) {
@@ -81,7 +89,8 @@ function commandOutput(command, args) {
 }
 
 function packageManagerLabel(packageManager) {
-  return packageManager.charAt(0).toUpperCase() + packageManager.slice(1);
+  const value = String(packageManager || '').trim();
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : 'Package manager';
 }
 
 function isWsl() {
@@ -101,10 +110,77 @@ function isGitRepo(root) {
   return result.status === 0 && result.stdout.trim() === 'true';
 }
 
+function platformLabel() {
+  if (process.platform === 'darwin') {
+    return 'macOS';
+  }
+
+  if (process.platform === 'win32') {
+    return 'Windows';
+  }
+
+  if (process.platform === 'linux') {
+    return isWsl() ? 'Linux (WSL)' : 'Linux';
+  }
+
+  return process.platform;
+}
+
+function detectTerminal() {
+  const env = process.env;
+
+  if (env.WARP_IS_LOCAL_SHELL_SESSION) {
+    return { name: 'Warp', supportsTabs: process.platform === 'darwin' };
+  }
+
+  if (env.TERM_PROGRAM === 'iTerm.app') {
+    return { name: 'iTerm2', supportsTabs: process.platform === 'darwin' };
+  }
+
+  if (env.TERM_PROGRAM === 'Apple_Terminal') {
+    return { name: 'Terminal', supportsTabs: process.platform === 'darwin' };
+  }
+
+  if (env.WT_SESSION) {
+    return { name: 'Windows Terminal', supportsTabs: process.platform === 'win32' };
+  }
+
+  if (env.KONSOLE_VERSION) {
+    return { name: 'Konsole', supportsTabs: process.platform === 'linux' && !isWsl() };
+  }
+
+  if (env.GNOME_TERMINAL_SCREEN || env.GNOME_TERMINAL_SERVICE) {
+    return { name: 'GNOME Terminal', supportsTabs: process.platform === 'linux' && !isWsl() };
+  }
+
+  if (process.platform === 'win32') {
+    return { name: env.PSModulePath ? 'PowerShell' : 'Windows console', supportsTabs: false };
+  }
+
+  return { name: env.TERM_PROGRAM || env.TERM || 'Unknown terminal', supportsTabs: false };
+}
+
+function detectLaunchMode() {
+  if (process.platform === 'darwin' && commandExists('osascript')) {
+    return 'tabs';
+  }
+
+  if (process.platform === 'linux' && !isWsl() && (commandExists('gnome-terminal') || commandExists('konsole'))) {
+    return 'tabs';
+  }
+
+  if (process.platform === 'win32') {
+    return 'tabs';
+  }
+
+  return 'current';
+}
+
 module.exports = {
   runShell,
   servicePath,
   readJson,
+  readJsonSafe,
   titleCase,
   defaultAlias,
   shellQuote,
@@ -114,5 +190,8 @@ module.exports = {
   commandOutput,
   packageManagerLabel,
   isWsl,
-  isGitRepo
+  isGitRepo,
+  platformLabel,
+  detectTerminal,
+  detectLaunchMode
 };

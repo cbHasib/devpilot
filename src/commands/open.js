@@ -4,9 +4,11 @@ const { spawn } = require('child_process');
 
 const clack = require('@clack/prompts');
 
-const { header, section, success, warning, info, line, paint } = require('../ui');
+const { header, section, line, paint } = require('../ui');
+const { info, success, warning } = require('../logger');
 const { CONFIG_FILE } = require('../constants');
 const { servicePath, commandExists, winQuote } = require('../utils');
+const { selectOption } = require('../search-select');
 
 const DEFAULT_EDITOR = 'code';
 
@@ -60,7 +62,7 @@ async function chooseTarget(context, message) {
     return root;
   }
 
-  const choice = await clack.select({
+  const choice = await selectOption({
     message,
     options: [
       { value: '__root__', label: root.label, hint: 'workspace root' },
@@ -72,7 +74,7 @@ async function chooseTarget(context, message) {
     ]
   });
 
-  if (clack.isCancel(choice)) {
+  if (clack.isCancel(choice) || choice === null) {
     return null;
   }
 
