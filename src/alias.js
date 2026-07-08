@@ -44,42 +44,102 @@ async function createPosixAlias(binDir, alias, projectRoot) {
   }
 
   fs.chmodSync(aliasPath, 0o755);
-  warnIfNotOnPath(targetDir, alias);
+  await ensureOnPath(targetDir);
 
   return aliasPath;
 }
 
 function resolvePosixBinDir(preferred) {
-  if (canWriteDir(preferred)) {
+  // Best case: the npm global bin dir is writable (e.g. an nvm install).
+  if (isWritableDir(preferred)) {
     return preferred;
   }
 
+  // Next best: a directory under the user's home that is already on PATH and
+  // writable, so the alias works immediately without touching a shell profile.
+  const home = os.homedir();
+  const writableOnPath = pathDirs().find(
+    (dir) => (dir === home || dir.startsWith(home + path.sep)) && isWritableDir(dir)
+  );
+
+  if (writableOnPath) {
+    return writableOnPath;
+  }
+
+  // Last resort: the conventional user bin dir. We create it below and offer
+  // to add it to PATH.
   return path.join(os.homedir(), '.local', 'bin');
 }
 
-function canWriteDir(dir) {
+function isWritableDir(dir) {
   try {
-    fs.mkdirSync(dir, { recursive: true });
     fs.accessSync(dir, fs.constants.W_OK);
-    return true;
+    return fs.statSync(dir).isDirectory();
   } catch (error) {
     return false;
   }
 }
 
-function warnIfNotOnPath(dir, alias) {
-  const entries = (process.env.PATH || '')
+function pathDirs() {
+  return (process.env.PATH || '')
     .split(path.delimiter)
     .filter(Boolean)
+    .filter((entry) => path.isAbsolute(entry))
     .map((entry) => path.resolve(entry));
+}
 
-  if (entries.includes(path.resolve(dir))) {
+async function ensureOnPath(dir) {
+  if (pathDirs().includes(path.resolve(dir))) {
     return;
   }
 
-  clack.log.warn(`${dir} is not on your PATH, so "${alias}" may not be found yet.`);
-  clack.log.warn(`Add it with:  echo 'export PATH="${dir}:$PATH"' >> ~/.profile`);
-  clack.log.warn('Then restart your shell, or run: source ~/.profile');
+  const profile = shellProfile();
+  const exportLine = `export PATH="${dir}:$PATH"`;
+
+  const shouldAdd = await answer(clack.confirm({
+    message: `${dir} is not on your PATH. Add it to ${profile}?`,
+    initialValue: true
+  }));
+
+  if (!shouldAdd) {
+    clack.log.warn(`Add it yourself:  echo '${exportLine}' >> ${profile}`);
+    return;
+  }
+
+  appendToProfile(profile, exportLine);
+  clack.log.success(`Added ${dir} to PATH in ${profile}.`);
+  clack.log.warn(`Restart your shell or run: source ${profile}`);
+}
+
+function shellProfile() {
+  const home = os.homedir();
+  const shell = process.env.SHELL || '';
+
+  if (shell.includes('zsh')) {
+    return path.join(home, '.zshrc');
+  }
+
+  if (shell.includes('bash')) {
+    const bashrc = path.join(home, '.bashrc');
+    return fs.existsSync(bashrc) ? bashrc : path.join(home, '.profile');
+  }
+
+  return path.join(home, '.profile');
+}
+
+function appendToProfile(profile, exportLine) {
+  let content = fs.existsSync(profile) ? fs.readFileSync(profile, 'utf8') : '';
+
+  if (content.includes(exportLine)) {
+    return;
+  }
+
+  if (content && !content.endsWith('\n')) {
+    content += '\n';
+  }
+
+  content += `\n# ${ALIAS_MARKER} PATH\n${exportLine}\n`;
+  fs.writeFileSync(profile, content);
 }
 
 async function createWindowsAlias(binDir, alias, projectRoot) {
