@@ -4,7 +4,7 @@ Run a local multi-service workspace from one command.
 
 DevPilot is a small CLI for projects where local development means starting several folders every day: a web app, an API, a worker, docs, admin, or any other service with its own command.
 
-It does not replace Docker Compose, Turborepo, Nx, pnpm workspaces, or your package manager. It sits above them as the daily developer entry point.
+> **Important:** DevPilot does not replace Docker Compose, Turborepo, Nx, pnpm workspaces, or your package manager. It sits above them as the daily developer entry point.
 
 ```bash
 npm install -g @cbhasib/devpilot
