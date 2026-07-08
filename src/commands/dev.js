@@ -124,7 +124,9 @@ function openWindowsTabs(context, services) {
     })
     .join(' ; ');
 
-  spawn(`wt ${command}`, {
+  // `-w 0` reuses the current Windows Terminal window instead of
+  // spawning a brand new one, so the services open as tabs in place.
+  spawn(`wt -w 0 ${command}`, {
     shell: true,
     detached: true,
     stdio: 'ignore'

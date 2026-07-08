@@ -43,22 +43,41 @@ async function createPosixAlias(binDir, alias, projectRoot) {
 }
 
 async function createWindowsAlias(binDir, alias, projectRoot) {
-  const aliasPath = path.join(binDir, `${alias}.cmd`);
   const cliPath = cliEntryPath();
-  const content = [
+
+  const cmdPath = path.join(binDir, `${alias}.cmd`);
+  const cmdContent = [
     '@echo off',
     `REM ${ALIAS_MARKER}. Do not edit by hand.`,
     `node "${cliPath}" --project "${projectRoot}" %*`,
     ''
   ].join('\r\n');
 
-  const wroteAlias = await writeAliasFile(aliasPath, content);
+  const wroteCmd = await writeAliasFile(cmdPath, cmdContent);
 
-  if (!wroteAlias) {
+  if (!wroteCmd) {
     return null;
   }
 
-  return aliasPath;
+  // Git Bash / MSYS shells do not resolve `.cmd` files from a bare command
+  // name (they only auto-append `.exe`), so also write an extension-less
+  // POSIX shim next to it. Forward-slash paths keep the shell happy and node
+  // on Windows accepts them.
+  const shimPath = path.join(binDir, alias);
+  const shimContent = [
+    '#!/bin/sh',
+    `# ${ALIAS_MARKER}. Do not edit by hand.`,
+    `exec node "${toPosixPath(cliPath)}" --project "${toPosixPath(projectRoot)}" "$@"`,
+    ''
+  ].join('\n');
+
+  await writeAliasFile(shimPath, shimContent);
+
+  return cmdPath;
+}
+
+function toPosixPath(value) {
+  return String(value).replace(/\\/g, '/');
 }
 
 async function writeAliasFile(aliasPath, content) {
