@@ -99,7 +99,7 @@ function normalizeConfig(config, root, configError = null) {
 }
 
 function enrichServices(services, root) {
-  const detected = new Map(scanWorkspace(root).services.map((service) => [service.dir, service]));
+  const detected = new Map<string, any>(scanWorkspace(root).services.map((service) => [service.dir, service]));
 
   return services.map((service) => {
     const match = detected.get(service.dir);

@@ -12,7 +12,7 @@ const CACHE_FILE = path.join(os.homedir(), '.devpilot', 'update-check.json');
 const CHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const FETCH_TIMEOUT_MS = 5000; // 5 seconds
 
-function scheduleUpdateCheck(options = {}) {
+function scheduleUpdateCheck(options: { notifyOnExit?: boolean } = {}) {
   const notifyOnExit = options.notifyOnExit !== false;
 
   if (!process.stdout.isTTY || process.env.CI || process.env.DEVPILOT_NO_UPDATE_CHECK) {
@@ -142,7 +142,7 @@ function writeCache(cache) {
   fs.writeFileSync(CACHE_FILE, `${JSON.stringify(cache, null, 2)}\n`);
 }
 
-async function refreshCache(options = {}) {
+async function refreshCache(options: { timeoutMs?: number } = {}) {
   const cache = readCache();
   const next = { lastChecked: Date.now(), latest: cache.latest || null };
   const timeoutMs = options.timeoutMs || FETCH_TIMEOUT_MS;

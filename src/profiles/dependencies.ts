@@ -19,6 +19,11 @@ function normalizeDelay(value) {
   return Number.isFinite(number) && number > 0 ? Math.round(number) : 0;
 }
 
+/**
+ * Expands the selected services with their dependencies and returns launch
+ * batches. Services in the same batch can start in parallel; later batches wait
+ * for earlier dependencies to be launched first.
+ */
 function startupBatches(context, selectedServices) {
   const allServices = context.allServices || context.config.services || [];
   const warnings = [];
@@ -81,7 +86,7 @@ function expandDependencies(selectedServices, allServices, warnings = []) {
 }
 
 function topologicalBatches(services, allServices) {
-  const serviceMap = new Map(services.map((service) => [serviceKey(service), service]));
+  const serviceMap = new Map<string, any>(services.map((service) => [serviceKey(service), service]));
   const remaining = new Set(serviceMap.keys());
   const batches = [];
 

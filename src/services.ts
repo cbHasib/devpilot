@@ -5,7 +5,7 @@ const { detectPackageManagerInfo: detectPackageManagerInfoFromWorkspace } = requ
 const { scanWorkspace } = require('./workspace/scanner');
 
 function cleanService(service) {
-  const clean = {
+  const clean: any = {
     dir: String(service.dir || '').trim(),
     name: String(service.name || '').trim(),
     dev: String(service.dev || '').trim(),

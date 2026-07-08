@@ -1,6 +1,6 @@
 {
   "name": "@cbhasib/devpilot",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Reusable project management CLI for multi-service development workspaces.",
   "author": "Hasibul Hasan <cbHasib>",
   "license": "MIT",
@@ -15,10 +15,13 @@
   "bin": {
     "devpilot": "bin/devpilot.js"
   },
+  "main": "dist/cli.js",
+  "types": "dist/types.d.ts",
   "files": [
     "bin",
-    "src",
-    "README.md"
+    "dist",
+    "README.md",
+    "CONTRIBUTING.md"
   ],
   "engines": {
     "node": ">=20.12.0"
@@ -27,8 +30,11 @@
     "access": "public"
   },
   "scripts": {
-    "check": "node --check bin/devpilot.js && node -e \"require('./src/cli')\"",
-    "start": "node bin/devpilot.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm run build && node --check bin/devpilot.js && node -e \"require('./dist/cli')\"",
+    "start": "npm run build && node bin/devpilot.js",
+    "prepack": "npm run build",
     "pack:dry": "npm pack --dry-run"
   },
   "keywords": [
@@ -40,5 +46,9 @@
   ],
   "dependencies": {
     "@clack/prompts": "^1.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^6.0.3"
   }
 }

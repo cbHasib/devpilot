@@ -54,7 +54,7 @@ function searchableSelect({ message, options, visibleLimit }) {
       resolve(value);
     };
 
-    const onKeypress = (chunk, key = {}) => {
+    const onKeypress = (chunk, key: any = {}) => {
       if (key.ctrl && key.name === 'c') {
         cleanup(null);
         return;
@@ -211,7 +211,7 @@ function optionLimit(total, requested) {
   return Math.max(1, Math.min(total, explicit || availableRows));
 }
 
-function matchingShortcut(options, chunk, key = {}) {
+function matchingShortcut(options, chunk, key: any = {}) {
   if (key.ctrl || key.meta) {
     return null;
   }
@@ -225,7 +225,7 @@ function matchingShortcut(options, chunk, key = {}) {
   return options.find((option) => String(option.shortcut || '').toLowerCase() === value) || null;
 }
 
-function shortcutKey(chunk, key = {}) {
+function shortcutKey(chunk, key: any = {}) {
   if (key.name && key.name.length === 1) {
     return key.name.toLowerCase();
   }

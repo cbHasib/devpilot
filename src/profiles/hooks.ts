@@ -5,6 +5,10 @@ const { info, warning } = require('../logger');
 const { runShell } = require('../utils');
 const { normalizeHooks, profileEnv } = require('./manager');
 
+/**
+ * Runs configured automation hooks from the workspace root. Profile variables
+ * are merged into the child process environment only for the hook lifetime.
+ */
 async function runHooks(context, name) {
   const commands = hookCommands(context, name);
 

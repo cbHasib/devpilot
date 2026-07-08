@@ -464,6 +464,28 @@ my-services
 
 ---
 
+# Development
+
+DevPilot is written in TypeScript. Source files live in `src/`, and compiled CommonJS output is generated into `dist/` for npm publishing.
+
+Useful contributor commands:
+
+```bash
+npm install
+npm run typecheck
+npm run build
+npm run check
+npm run pack:dry
+```
+
+The executable wrapper at `bin/devpilot.js` loads `dist/cli.js`, so run `npm run build` before trying local CLI changes.
+
+Important types are documented in `src/types.ts`, including `DevPilotConfig`, `ServiceConfig`, `WorkspaceProfile`, `ProjectContext`, `RuntimeEntry` and `CommandDefinition`. Comments are focused around the less obvious areas: terminal prompt handling, update hotkeys, process management, runtime registry state, profile filtering, hooks and dependency scheduling.
+
+See `CONTRIBUTING.md` for the project map and release checklist.
+
+---
+
 # Author
 
 **Hasibul Hasan**

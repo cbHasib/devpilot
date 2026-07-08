@@ -18,7 +18,11 @@ const {
 
 const STOP_TIMEOUT_MS = 4000;
 
-function startService(context, service, options = {}) {
+/**
+ * Starts a service and records enough runtime metadata for status, logs, stop,
+ * and restart commands to work without scanning or killing unrelated processes.
+ */
+function startService(context, service, options: { detached?: boolean; mirror?: boolean; terminalSession?: string | null } = {}) {
   ensureRuntime(context.root);
 
   const cwd = servicePath(context, service);
@@ -197,6 +201,8 @@ async function terminatePid(pid) {
 }
 
 function killTarget(pid) {
+  // POSIX services are spawned detached, so the negative pid targets the whole
+  // process group. Windows does not support that form and receives the pid.
   return process.platform === 'win32' ? pid : -pid;
 }
 

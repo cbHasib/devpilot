@@ -88,7 +88,7 @@ async function startDevelopment(context) {
   line();
 
   let placement = 'in separate tabs';
-  let launcher = openWindowsWindow;
+  let launcher = (launchContext, service, index) => openWindowsWindow(launchContext, service);
 
   if (useMacTabs) {
     launcher = openMacTab;

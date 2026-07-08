@@ -10,7 +10,7 @@ async function installAll(context) {
   await installServices(context);
 }
 
-async function installServices(context, options = {}) {
+async function installServices(context, options: { showCompletion?: boolean } = {}) {
   const services = context.config.services;
 
   if (services.length === 0) {

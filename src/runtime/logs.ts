@@ -43,7 +43,7 @@ async function followWorkspaceLogs(context, services) {
 }
 
 function followFile(file, label = '') {
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     let position = printTail(file, label);
     const timer = setInterval(() => {
       position = printNewContent(file, position, label);

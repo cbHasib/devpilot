@@ -87,7 +87,7 @@ function runInstall(command) {
   line(`  ${style('Installing', 'white', 'bold')} ${paint(command, 'cyan')}`);
   line();
 
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const child = spawn(command, {
       shell: true,
       stdio: 'inherit',

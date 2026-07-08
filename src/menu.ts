@@ -101,7 +101,9 @@ async function selectMenuAction(update) {
   const controller = new AbortController();
   let shortcutAction = null;
 
-  const onKeypress = (chunk, key = {}) => {
+  // Clack owns raw-mode rendering for the menu. The update hotkey only listens
+  // for "u", aborts the native prompt, and lets Clack perform its own cleanup.
+  const onKeypress = (chunk, key: any = {}) => {
     if (shortcutAction || key.ctrl || key.meta) {
       return;
     }

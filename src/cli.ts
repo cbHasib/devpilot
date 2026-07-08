@@ -127,6 +127,8 @@ function commandProfileContext(commandDefinition, context, args) {
     return { context, args, warnings: [], ok: true };
   }
 
+  // Profile arguments are resolved once in the dispatcher so command handlers
+  // can keep working with `context.config.services` as their active scope.
   return applyProfileArg(context, args, {
     strict: commandDefinition.profileMode === 'strict'
   });

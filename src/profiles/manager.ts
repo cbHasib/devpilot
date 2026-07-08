@@ -82,7 +82,7 @@ function findProfile(config, target) {
   )) || null;
 }
 
-function applyProfileArg(context, args = [], options = {}) {
+function applyProfileArg(context, args = [], options: { strict?: boolean } = {}) {
   const target = args[0];
 
   if (!target) {
@@ -122,6 +122,11 @@ function applyProfileArg(context, args = [], options = {}) {
   };
 }
 
+/**
+ * Returns a shallow cloned command context whose services are filtered to the
+ * active profile. The original service list is preserved as `allServices` so
+ * dependency resolution and validation can still see the full workspace.
+ */
 function contextForProfile(context, profile) {
   const allServices = context.allServices || context.config.services || [];
   const resolved = servicesForProfile(allServices, profile);
@@ -147,6 +152,10 @@ function contextForProfile(context, profile) {
   };
 }
 
+/**
+ * Adds only profile environment metadata to a context. This is used by hidden
+ * terminal-tab service runners, where the service target is already known.
+ */
 function contextWithProfileEnv(context, profile) {
   if (!profile) {
     return context;
@@ -236,7 +245,7 @@ function recommendedProfiles(services) {
     }
   });
 
-  const profiles = {};
+  const profiles: Record<string, string[]> = {};
 
   if (frontend.length > 0) {
     profiles.frontend = frontend;

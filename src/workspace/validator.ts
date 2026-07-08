@@ -11,7 +11,7 @@ const { normalizeDelay, normalizeDependsOn, startupBatches } = require('../profi
 
 const COMMAND_FIELDS = ['dev', 'build', 'lint'];
 
-function validateConfig(context, options = {}) {
+function validateConfig(context, options: { includeMissingCommands?: boolean } = {}) {
   const config = context.config || {};
   const services = Array.isArray(config.services) ? config.services : [];
   const allServices = Array.isArray(context.allServices) ? context.allServices : services;
@@ -93,7 +93,7 @@ function validateConfig(context, options = {}) {
   return warnings;
 }
 
-function serviceWarnings(context, service, options = {}) {
+function serviceWarnings(context, service, options: { includeMissingCommands?: boolean } = {}) {
   const warnings = [];
   const root = servicePath(context, service);
   const label = service.name || service.dir || 'Unnamed service';

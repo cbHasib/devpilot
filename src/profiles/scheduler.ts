@@ -6,6 +6,10 @@ function createLaunchPlan(context, services) {
   return startupBatches(context, services);
 }
 
+/**
+ * Launches dependency batches in order. Delays are applied per service inside
+ * each batch so unrelated services can still start in parallel.
+ */
 async function runLaunchPlan(plan, launchService) {
   let index = 0;
 
