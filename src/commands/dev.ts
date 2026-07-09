@@ -14,12 +14,12 @@ const {
   style
 } = require('../ui');
 const { info, success, warning } = require('../logger');
-const { commandExists, isWsl, shellQuote, appleQuote, winQuote } = require('../utils');
+const { commandExists, isWsl, shellQuote, appleQuote, winQuote, servicePath } = require('../utils');
 const { TAB_COLORS } = require('../constants');
 const { serviceExecutionIssue, serviceExecutionWarnings } = require('../validation');
 const { clearServiceLog } = require('../runtime/logs');
 const { startService } = require('../runtime/processManager');
-const { updateEntry } = require('../runtime/registry');
+const { ensureRuntime, serviceKey, updateEntry } = require('../runtime/registry');
 const { confirmStopServices } = require('../runtime/signals');
 const { findProfile, findService: findConfiguredService, contextWithProfileEnv } = require('../profiles/manager');
 const { runHooks } = require('../profiles/hooks');
@@ -165,7 +165,7 @@ function clearLaunchLogs(context, services) {
 }
 
 function openMacTab(context, service) {
-  const command = managedServiceCommand(context, service);
+  const command = terminalManagedServiceCommand(context, service);
   const script = [
     'tell application "Terminal"',
     'activate',
@@ -181,7 +181,7 @@ function openMacTab(context, service) {
 }
 
 function openGnomeTab(context, service) {
-  const command = `${managedServiceCommand(context, service)}; exec bash`;
+  const command = `${terminalManagedServiceCommand(context, service)}; exec bash`;
   spawn('gnome-terminal', [
     '--tab',
     `--title=${service.name}`,
@@ -196,11 +196,11 @@ function openGnomeTab(context, service) {
 }
 
 function openKonsoleTab(context, service) {
-  const command = `${managedServiceCommand(context, service)}; exec bash`;
+  const command = `${terminalManagedServiceCommand(context, service)}; exec bash`;
   spawn('konsole', [
     '--new-tab',
     '--workdir',
-    context.root,
+    servicePath(context, service),
     '-p',
     `tabtitle=${service.name}`,
     '-e',
@@ -214,14 +214,28 @@ function openKonsoleTab(context, service) {
 }
 
 function openWindowsTab(context, service, index) {
-  const dir = winQuote(context.root);
+  const dir = servicePath(context, service);
   const color = tabColor(service, index);
-  const command = `new-tab --title ${winQuote(service.name)} --tabColor ${winQuote(color)} -d ${dir} cmd /k ${winQuote(managedServiceCommand(context, service, 'win'))}`;
+  const launcher = windowsServiceLauncher(context, service);
 
   // `-w 0` reuses the current Windows Terminal window instead of
   // spawning a brand new one, so the services open as tabs in place.
-  spawn(`wt -w 0 ${command}`, {
-    shell: true,
+  spawn('wt', [
+    '-w',
+    '0',
+    'new-tab',
+    '--title',
+    service.name || service.dir,
+    '--tabColor',
+    color,
+    '-d',
+    dir,
+    'cmd.exe',
+    '/d',
+    '/k',
+    'call',
+    launcher
+  ], {
     detached: true,
     stdio: 'ignore'
   }).unref();
@@ -232,14 +246,32 @@ function tabColor(service, index) {
 }
 
 function openWindowsWindow(context, service) {
-  const dir = winQuote(context.root);
-  const command = `start ${winQuote(service.name)} /D ${dir} cmd /k ${winQuote(managedServiceCommand(context, service, 'win'))}`;
+  const dir = winQuote(servicePath(context, service));
+  const launcher = winQuote(windowsServiceLauncher(context, service));
+  const command = `start ${winQuote(service.name || service.dir)} /D ${dir} cmd.exe /d /k call ${launcher}`;
 
   spawn(command, {
     shell: true,
     detached: true,
     stdio: 'ignore'
   }).unref();
+}
+
+function terminalManagedServiceCommand(context, service, platform = 'posix') {
+  if (platform === 'win') {
+    return `cd /d ${winQuote(servicePath(context, service))} && ${managedServiceCommand(context, service, 'win')}`;
+  }
+
+  return `cd ${shellQuote(servicePath(context, service))} && ${managedServiceCommand(context, service)}`;
+}
+
+function windowsServiceLauncher(context, service) {
+  const runtime = ensureRuntime(context.root);
+  const launcher = path.join(runtime, `${serviceKey(service)}.cmd`);
+  const command = terminalManagedServiceCommand(context, service, 'win');
+
+  fs.writeFileSync(launcher, `${command}\r\n`);
+  return launcher;
 }
 
 async function runDevHere(context, plan, afterLaunch) {
