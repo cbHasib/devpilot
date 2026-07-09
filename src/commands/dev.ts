@@ -165,7 +165,7 @@ function clearLaunchLogs(context, services) {
 }
 
 function openMacTab(context, service) {
-  const command = terminalManagedServiceCommand(context, service);
+  const command = macTerminalCommand(context, service);
   const script = [
     'tell application "Terminal"',
     'activate',
@@ -178,6 +178,16 @@ function openMacTab(context, service) {
   ].join('\n');
 
   spawnSync('osascript', ['-e', script], { stdio: 'ignore' });
+}
+
+function macTerminalCommand(context, service) {
+  const launcher = posixServiceLauncher(context, service);
+
+  return [
+    `cd ${shellQuote(servicePath(context, service))}`,
+    "printf '\\033[2J\\033[3J\\033[H'",
+    shellQuote(launcher)
+  ].join(' && ');
 }
 
 function openGnomeTab(context, service) {
@@ -263,6 +273,16 @@ function terminalManagedServiceCommand(context, service, platform = 'posix') {
   }
 
   return `cd ${shellQuote(servicePath(context, service))} && ${managedServiceCommand(context, service)}`;
+}
+
+function posixServiceLauncher(context, service) {
+  const runtime = ensureRuntime(context.root);
+  const launcher = path.join(runtime, `${serviceKey(service)}.sh`);
+  const command = terminalManagedServiceCommand(context, service);
+
+  fs.writeFileSync(launcher, `#!/bin/sh\n${command}\n`);
+  fs.chmodSync(launcher, 0o755);
+  return launcher;
 }
 
 function windowsServiceLauncher(context, service) {
