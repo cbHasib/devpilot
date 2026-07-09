@@ -212,7 +212,10 @@ Use them like this:
 my-app dev frontend
 my-app status backend
 my-app logs api
+my-app logs --profile frontend
 ```
+
+Profile ids are lowercase slugs, so `Frontend`, `front-end`, and `frontend` resolve to the same profile id. Commands that target services, such as `logs`, `stop`, and `restart`, treat an ambiguous name as a service; use `--profile <id>` when you mean the profile.
 
 When multiple profiles exist, the interactive menu asks which profile to use.
 

@@ -11,6 +11,7 @@ const {
   envToInput,
   findProfile,
   listProfiles,
+  normalizeProfileId,
   parseEnvInput,
   profileServiceTokens,
   serializeProfile,
@@ -62,7 +63,7 @@ async function createProfile(context, initialName) {
     initialValue: initialName || '',
     validate: requiredField
   }));
-  const id = profileId(name);
+  const id = normalizeProfileId(name);
 
   if (findProfile(context.config, id)) {
     warning(`Profile "${name}" already exists.`);
@@ -232,16 +233,6 @@ function writeableConfig(context) {
 
   delete config.activeProfile;
   return config;
-}
-
-function profileId(value) {
-  const id = String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  return id || 'profile';
 }
 
 module.exports = {

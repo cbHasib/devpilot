@@ -13,7 +13,7 @@ function normalizeProfiles(value) {
   }
 
   return Object.keys(value).reduce((profiles, name) => {
-    const id = String(name || '').trim();
+    const id = normalizeProfileId(name, '');
 
     if (!id) {
       return profiles;
@@ -82,24 +82,31 @@ function findProfile(config, target) {
   )) || null;
 }
 
-function applyProfileArg(context, args = [], options: { strict?: boolean } = {}) {
-  const target = args[0];
+function applyProfileArg(context, args = [], options: { strict?: boolean; mode?: 'strict' | 'target' } = {}) {
+  const mode = options.mode || (options.strict ? 'strict' : 'target');
+  const parsed = extractProfileArg(args);
+
+  if (parsed.explicit) {
+    return resolveProfileArg(context, parsed.profile, parsed.args, { strict: true });
+  }
+
+  const target = parsed.args[0];
 
   if (!target) {
-    return { context, args, profile: null, consumed: false, warnings: [], ok: true };
+    return { context, args: parsed.args, profile: null, consumed: false, warnings: [], ok: true };
   }
 
   const profile = findProfile(context.config, target);
 
   if (!profile) {
-    if (options.strict) {
+    if (mode === 'strict') {
       const message = hasProfiles(context.config)
         ? `Unknown profile: ${target}.`
         : 'No profiles are configured for this workspace.';
 
       return {
         context,
-        args,
+        args: parsed.args,
         profile: null,
         consumed: false,
         warnings: [message],
@@ -107,19 +114,78 @@ function applyProfileArg(context, args = [], options: { strict?: boolean } = {})
       };
     }
 
-    return { context, args, profile: null, consumed: false, warnings: [], ok: true };
+    return { context, args: parsed.args, profile: null, consumed: false, warnings: [], ok: true };
+  }
+
+  if (mode === 'target' && findService(context.config.services || [], target)) {
+    return {
+      context,
+      args: parsed.args,
+      profile: null,
+      consumed: false,
+      warnings: [`"${target}" matches both a profile and a service. Treating it as a service; use --profile ${profile.id} to select the profile.`],
+      ok: true
+    };
+  }
+
+  return resolveProfileArg(context, target, parsed.args.slice(1), { strict: false });
+}
+
+function resolveProfileArg(context, target, nextArgs, options: { strict?: boolean } = {}) {
+  const profile = findProfile(context.config, target);
+
+  if (!profile) {
+    const message = hasProfiles(context.config)
+      ? `Unknown profile: ${target || 'missing profile'}.`
+      : 'No profiles are configured for this workspace.';
+
+    return {
+      context,
+      args: nextArgs,
+      profile: null,
+      consumed: false,
+      warnings: options.strict ? [message] : [],
+      ok: !options.strict
+    };
   }
 
   const resolved = contextForProfile(context, profile);
 
   return {
     context: resolved.context,
-    args: args.slice(1),
+    args: nextArgs,
     profile,
     consumed: true,
     warnings: resolved.warnings,
     ok: true
   };
+}
+
+function extractProfileArg(args = []) {
+  const next = [];
+  let explicit = false;
+  let profile = null;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === '--profile' || arg === '-p') {
+      explicit = true;
+      profile = args[index + 1] || '';
+      index += 1;
+      continue;
+    }
+
+    if (String(arg || '').startsWith('--profile=')) {
+      explicit = true;
+      profile = String(arg).slice('--profile='.length);
+      continue;
+    }
+
+    next.push(arg);
+  }
+
+  return { args: next, explicit, profile };
 }
 
 /**
@@ -229,6 +295,16 @@ function profileFromDefinition(id, definition) {
     env: normalizeEnv(source.env),
     raw: definition
   };
+}
+
+function normalizeProfileId(value, fallback = 'profile') {
+  const id = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return id || fallback;
 }
 
 function recommendedProfiles(services) {
@@ -396,6 +472,7 @@ module.exports = {
   hasProfiles,
   listProfiles,
   normalizeEnv,
+  normalizeProfileId,
   normalizeHooks,
   normalizeProfiles,
   parseEnvInput,
