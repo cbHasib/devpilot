@@ -2,7 +2,7 @@
 
 const { setupProject } = require('../setup');
 const { showMenu } = require('../menu');
-const { runManagedService, startDevelopment } = require('./dev');
+const { startDevelopment } = require('./dev');
 const { installAll } = require('./install');
 const { runForServices } = require('./tasks');
 const { cleanProject } = require('./clean');
@@ -31,12 +31,6 @@ const commands = [
     description: 'Open the interactive menu',
     hidden: true,
     handler: (context, args, runCommand) => showMenu(context, runCommand)
-  },
-  {
-    name: '__run-service',
-    description: 'Run one managed service',
-    hidden: true,
-    handler: runManagedService
   },
   {
     name: 'dev',

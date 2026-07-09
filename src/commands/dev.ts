@@ -1,7 +1,5 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 
 const {
@@ -19,9 +17,8 @@ const { TAB_COLORS } = require('../constants');
 const { serviceExecutionIssue, serviceExecutionWarnings } = require('../validation');
 const { clearServiceLog } = require('../runtime/logs');
 const { startService } = require('../runtime/processManager');
-const { ensureRuntime, serviceKey, updateEntry } = require('../runtime/registry');
+const { updateEntry } = require('../runtime/registry');
 const { confirmStopServices } = require('../runtime/signals');
-const { findProfile, findService: findConfiguredService, contextWithProfileEnv } = require('../profiles/manager');
 const { runHooks } = require('../profiles/hooks');
 const { normalizeDelay } = require('../profiles/dependencies');
 const { createLaunchPlan, runLaunchPlan } = require('../profiles/scheduler');
@@ -58,7 +55,6 @@ async function startDevelopment(context) {
   const plan = createLaunchPlan(context, services);
   plan.warnings.forEach((message) => warning(message));
   printLaunchPlan(context, plan.services);
-  clearLaunchLogs(context, plan.services);
 
   await runHooks(context, 'beforeDev');
 
@@ -165,7 +161,7 @@ function clearLaunchLogs(context, services) {
 }
 
 function openMacTab(context, service) {
-  const command = macTerminalCommand(context, service);
+  const command = `cd ${shellQuote(servicePath(context, service))}; ${service.dev}`;
   const script = [
     'tell application "Terminal"',
     'activate',
@@ -180,18 +176,8 @@ function openMacTab(context, service) {
   spawnSync('osascript', ['-e', script], { stdio: 'ignore' });
 }
 
-function macTerminalCommand(context, service) {
-  const launcher = posixServiceLauncher(context, service);
-
-  return [
-    `cd ${shellQuote(servicePath(context, service))}`,
-    "printf '\\033[2J\\033[3J\\033[H'",
-    shellQuote(launcher)
-  ].join(' && ');
-}
-
 function openGnomeTab(context, service) {
-  const command = `${terminalManagedServiceCommand(context, service)}; exec bash`;
+  const command = `cd ${shellQuote(servicePath(context, service))} && ${service.dev}; exec bash`;
   spawn('gnome-terminal', [
     '--tab',
     `--title=${service.name}`,
@@ -206,7 +192,7 @@ function openGnomeTab(context, service) {
 }
 
 function openKonsoleTab(context, service) {
-  const command = `${terminalManagedServiceCommand(context, service)}; exec bash`;
+  const command = `cd ${shellQuote(servicePath(context, service))} && ${service.dev}; exec bash`;
   spawn('konsole', [
     '--new-tab',
     '--workdir',
@@ -226,7 +212,6 @@ function openKonsoleTab(context, service) {
 function openWindowsTab(context, service, index) {
   const dir = servicePath(context, service);
   const color = tabColor(service, index);
-  const launcher = windowsServiceLauncher(context, service);
 
   // `-w 0` reuses the current Windows Terminal window instead of
   // spawning a brand new one, so the services open as tabs in place.
@@ -243,8 +228,7 @@ function openWindowsTab(context, service, index) {
     'cmd.exe',
     '/d',
     '/k',
-    'call',
-    launcher
+    service.dev
   ], {
     detached: true,
     stdio: 'ignore'
@@ -257,41 +241,13 @@ function tabColor(service, index) {
 
 function openWindowsWindow(context, service) {
   const dir = winQuote(servicePath(context, service));
-  const launcher = winQuote(windowsServiceLauncher(context, service));
-  const command = `start ${winQuote(service.name || service.dir)} /D ${dir} cmd.exe /d /k call ${launcher}`;
+  const command = `start ${winQuote(service.name || service.dir)} /D ${dir} cmd.exe /d /k ${winQuote(service.dev)}`;
 
   spawn(command, {
     shell: true,
     detached: true,
     stdio: 'ignore'
   }).unref();
-}
-
-function terminalManagedServiceCommand(context, service, platform = 'posix') {
-  if (platform === 'win') {
-    return `cd /d ${winQuote(servicePath(context, service))} && ${managedServiceCommand(context, service, 'win')}`;
-  }
-
-  return `cd ${shellQuote(servicePath(context, service))} && ${managedServiceCommand(context, service)}`;
-}
-
-function posixServiceLauncher(context, service) {
-  const runtime = ensureRuntime(context.root);
-  const launcher = path.join(runtime, `${serviceKey(service)}.sh`);
-  const command = terminalManagedServiceCommand(context, service);
-
-  fs.writeFileSync(launcher, `#!/bin/sh\n${command}\n`);
-  fs.chmodSync(launcher, 0o755);
-  return launcher;
-}
-
-function windowsServiceLauncher(context, service) {
-  const runtime = ensureRuntime(context.root);
-  const launcher = path.join(runtime, `${serviceKey(service)}.cmd`);
-  const command = terminalManagedServiceCommand(context, service, 'win');
-
-  fs.writeFileSync(launcher, `${command}\r\n`);
-  return launcher;
 }
 
 async function runDevHere(context, plan, afterLaunch) {
@@ -303,6 +259,7 @@ async function runDevHere(context, plan, afterLaunch) {
 
   line('Press Ctrl+C to stop all services.');
   line();
+  clearLaunchLogs(context, plan.services);
 
   const running = [];
   let stopping = false;
@@ -378,57 +335,6 @@ async function runDevHere(context, plan, afterLaunch) {
   }
 }
 
-async function runManagedService(context, args) {
-  const parsed = parseManagedServiceArgs(args);
-  const profile = parsed.profile ? findProfile(context.config, parsed.profile) : null;
-  const runContext = profile ? contextWithProfileEnv(context, profile) : context;
-  const service = findConfiguredService(context.config.services || [], parsed.target);
-
-  if (!service) {
-    warning(`Service not found: ${parsed.target || 'missing service name'}`);
-    return;
-  }
-
-  await startService(runContext, service, { mirror: true, terminalSession: process.env.TERM_PROGRAM || process.env.TERM || null }).done;
-}
-
-function parseManagedServiceArgs(args = []) {
-  const profileIndex = args.indexOf('--profile');
-
-  if (profileIndex === -1) {
-    return { target: args[0], profile: null };
-  }
-
-  return {
-    target: args[0],
-    profile: args[profileIndex + 1] || null
-  };
-}
-
-function managedServiceCommand(context, service, platform = 'posix') {
-  const args = [
-    process.execPath,
-    cliEntryPath(),
-    '--project',
-    context.root,
-    '__run-service',
-    service.dir
-  ];
-  const profile = context.config.activeProfile;
-
-  if (profile && profile.id) {
-    args.push('--profile', profile.id);
-  }
-
-  const quote = platform === 'win' ? winQuote : shellQuote;
-
-  return args.map(quote).join(' ');
-}
-
-function cliEntryPath() {
-  return fs.realpathSync(path.join(__dirname, '..', '..', 'bin', 'devpilot.js'));
-}
-
 function killChild(child) {
   if (process.platform === 'win32') {
     child.kill('SIGTERM');
@@ -442,4 +348,4 @@ function killChild(child) {
   }
 }
 
-module.exports = { runManagedService, startDevelopment };
+module.exports = { startDevelopment };

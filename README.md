@@ -16,8 +16,6 @@ After setup, use your project alias:
 ```bash
 my-app
 my-app dev
-my-app status
-my-app logs api
 ```
 
 ## Why Use It?
@@ -37,9 +35,8 @@ It is useful for:
 
 - starting multiple local services
 - opening services in terminal tabs where supported
-- keeping per-service logs
-- checking which DevPilot-managed services are running
-- stopping or restarting those services safely
+- optionally keeping per-service logs when running in managed current-terminal mode
+- checking or stopping DevPilot-managed services when DevPilot owns the process
 - creating profiles like `frontend`, `backend`, or `fullstack`
 - adding project hooks such as `docker compose up -d`
 
@@ -123,9 +120,6 @@ Then:
 
 ```bash
 my-app dev
-my-app status
-my-app logs
-my-app stop
 ```
 
 ## Example: Monorepo
@@ -246,7 +240,9 @@ Services can start in dependency order.
 
 ## Logs And Process Management
 
-DevPilot tracks only services it starts. Runtime state stays inside the project:
+With the default `tabs` launch mode, DevPilot opens each service folder in its own terminal and runs the configured `dev` command directly. Those tab-launched services are controlled by their terminal tabs, so use Ctrl+C in the tab to stop them.
+
+Runtime state is only available when DevPilot owns the process, such as `launchMode: "current"` or services started through `restart`. That state stays inside the project:
 
 ```text
 .devpilot/runtime/
@@ -265,7 +261,7 @@ my-app restart api
 my-app stop
 ```
 
-Each `dev` run clears saved logs for the services it is about to start, so log output starts fresh for the current run.
+Managed `dev` runs clear saved logs for the services they are about to start, so log output starts fresh for the current run.
 
 DevPilot does not scan your machine for random processes and kill them. It only stops services recorded in its own runtime registry.
 
