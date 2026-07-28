@@ -184,13 +184,15 @@ function openMacTab(context, service) {
 
 // A non-interactive `bash -c` kills itself with SIGINT once its foreground
 // child is interrupted, so a bare `<dev>; exec bash` wrapper dies on Ctrl+C
-// and the terminal closes the tab with it. Trapping INT keeps the wrapper
-// alive long enough to hand the tab over to an interactive shell. The trap is
-// a command rather than '' on purpose: an ignored signal would be inherited by
-// the dev command, but a trapped one is reset to the default, so Ctrl+C still
-// stops the service.
+// and the terminal closes the tab with it. TERM is trapped alongside INT
+// because dev runners like turbo and concurrently signal their whole process
+// group on shutdown, which takes the wrapper down the same way. HUP is left
+// alone on purpose -- it means the terminal itself is gone, so the tab should
+// not outlive it. The traps are a command rather than '' because an ignored
+// signal would be inherited by the dev command, while a trapped one is reset
+// to the default in the child, so Ctrl+C still stops the service.
 function keepTabOpen(command) {
-  return `trap ':' INT; ${command}; exec bash`;
+  return `trap ':' INT TERM; ${command}; exec bash`;
 }
 
 function openGnomeTab(context, service) {
