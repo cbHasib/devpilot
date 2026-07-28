@@ -161,7 +161,7 @@ function clearLaunchLogs(context, services) {
 }
 
 function openMacTab(context, service) {
-  const command = `cd ${shellQuote(servicePath(context, service))}; ${service.dev}`;
+  const command = `cd ${shellQuote(servicePath(context, service))} && ${service.dev}`;
   const script = [
     'tell application "Terminal"',
     'activate',
