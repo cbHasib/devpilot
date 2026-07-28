@@ -161,7 +161,11 @@ function clearLaunchLogs(context, services) {
 }
 
 function openMacTab(context, service) {
-  const command = `cd ${shellQuote(servicePath(context, service))} && ${service.dev}`;
+  const changeDir = `cd ${shellQuote(servicePath(context, service))}`;
+
+  // Sent as two separate `do script` calls so the shell records them as
+  // separate history entries — pressing the up arrow in the tab recalls
+  // just the dev command instead of the whole `cd ... && ...` line.
   const script = [
     'tell application "Terminal"',
     'activate',
@@ -169,7 +173,9 @@ function openMacTab(context, service) {
     'keystroke "t" using command down',
     'end tell',
     'delay 0.3',
-    `do script ${appleQuote(command)} in selected tab of front window`,
+    `do script ${appleQuote(changeDir)} in selected tab of front window`,
+    'delay 0.2',
+    `do script ${appleQuote(service.dev)} in selected tab of front window`,
     'end tell'
   ].join('\n');
 
@@ -177,10 +183,13 @@ function openMacTab(context, service) {
 }
 
 function openGnomeTab(context, service) {
-  const command = `cd ${shellQuote(servicePath(context, service))} && ${service.dev}; exec bash`;
+  // The tab starts in the service directory, so the shell only ever runs
+  // the dev command itself instead of a combined `cd ... && ...` line.
+  const command = `${service.dev}; exec bash`;
   spawn('gnome-terminal', [
     '--tab',
     `--title=${service.name}`,
+    `--working-directory=${servicePath(context, service)}`,
     '--',
     'bash',
     '-lc',
@@ -192,7 +201,7 @@ function openGnomeTab(context, service) {
 }
 
 function openKonsoleTab(context, service) {
-  const command = `cd ${shellQuote(servicePath(context, service))} && ${service.dev}; exec bash`;
+  const command = `${service.dev}; exec bash`;
   spawn('konsole', [
     '--new-tab',
     '--workdir',
