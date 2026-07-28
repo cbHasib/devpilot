@@ -182,10 +182,21 @@ function openMacTab(context, service) {
   spawnSync('osascript', ['-e', script], { stdio: 'ignore' });
 }
 
+// A non-interactive `bash -c` kills itself with SIGINT once its foreground
+// child is interrupted, so a bare `<dev>; exec bash` wrapper dies on Ctrl+C
+// and the terminal closes the tab with it. Trapping INT keeps the wrapper
+// alive long enough to hand the tab over to an interactive shell. The trap is
+// a command rather than '' on purpose: an ignored signal would be inherited by
+// the dev command, but a trapped one is reset to the default, so Ctrl+C still
+// stops the service.
+function keepTabOpen(command) {
+  return `trap ':' INT; ${command}; exec bash`;
+}
+
 function openGnomeTab(context, service) {
   // The tab starts in the service directory, so the shell only ever runs
   // the dev command itself instead of a combined `cd ... && ...` line.
-  const command = `${service.dev}; exec bash`;
+  const command = keepTabOpen(service.dev);
   spawn('gnome-terminal', [
     '--tab',
     `--title=${service.name}`,
@@ -201,7 +212,7 @@ function openGnomeTab(context, service) {
 }
 
 function openKonsoleTab(context, service) {
-  const command = `${service.dev}; exec bash`;
+  const command = keepTabOpen(service.dev);
   spawn('konsole', [
     '--new-tab',
     '--workdir',
